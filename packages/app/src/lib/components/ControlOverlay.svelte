@@ -8,9 +8,10 @@
     onExit: () => void;
     onPatternChange: (id: string) => void;
     onParamChange: (key: string, value: unknown) => void;
+    onStartMapping?: (cols: number, rows: number) => void;
   }
 
-  let { pattern, params, onExit, onPatternChange, onParamChange }: Props = $props();
+  let { pattern, params, onExit, onPatternChange, onParamChange, onStartMapping }: Props = $props();
 
   let visible = $state(false);
   let locked = $state(false);
@@ -111,6 +112,9 @@
         <button class="nav-btn" onclick={prevPattern}>&lt;</button>
         <span class="pattern-name">{pattern?.name ?? ''}</span>
         <button class="nav-btn" onclick={nextPattern}>&gt;</button>
+        {#if onStartMapping}
+          <button class="map-btn" onclick={() => onStartMapping?.(4, 3)}>Map</button>
+        {/if}
         <button class="exit-btn" onclick={onExit}>Exit</button>
       </div>
 
@@ -195,6 +199,21 @@
 
   .nav-btn:active {
     background: rgba(255, 255, 255, 0.3);
+  }
+
+  .map-btn {
+    background: rgba(74, 158, 255, 0.3);
+    border: 1px solid #4a9eff;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .map-btn:active {
+    background: rgba(74, 158, 255, 0.5);
   }
 
   .exit-btn {

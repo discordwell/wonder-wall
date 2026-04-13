@@ -5,9 +5,10 @@
   interface Props {
     selected: string | undefined;
     onSelect: (id: string) => void;
+    onStartMapping?: (cols: number, rows: number) => void;
   }
 
-  let { selected, onSelect }: Props = $props();
+  let { selected, onSelect, onStartMapping }: Props = $props();
 
   const patterns = getAllPatterns();
   let thumbnails: Map<string, string> = $state(new Map());
@@ -35,6 +36,27 @@
     <h1 class="title">WonderWall</h1>
     <p class="subtitle">Tap a pattern to display fullscreen</p>
   </header>
+
+  {#if onStartMapping}
+    <div class="map-section">
+      <button class="map-card" onclick={() => onStartMapping?.(4, 3)}>
+        <div class="map-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="4" width="16" height="12" rx="2" />
+            <rect x="28" y="4" width="16" height="12" rx="2" />
+            <rect x="4" y="22" width="16" height="12" rx="2" />
+            <rect x="28" y="22" width="16" height="12" rx="2" />
+            <circle cx="24" cy="40" r="5" />
+            <line x1="24" y1="35" x2="24" y2="28" />
+          </svg>
+        </div>
+        <div class="map-card-info">
+          <span class="map-card-title">Map Panels</span>
+          <span class="map-card-desc">Camera-assisted panel identification</span>
+        </div>
+      </button>
+    </div>
+  {/if}
 
   <div class="grid">
     {#each patterns as pattern}
@@ -69,6 +91,50 @@
   .picker-header {
     text-align: center;
     margin-bottom: 24px;
+  }
+
+  .map-section {
+    max-width: 1200px;
+    margin: 0 auto 16px;
+  }
+
+  .map-card {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(74, 158, 255, 0.1);
+    border: 1px solid rgba(74, 158, 255, 0.3);
+    border-radius: 12px;
+    padding: 16px 20px;
+    cursor: pointer;
+    color: white;
+    text-align: left;
+    transition: background 0.15s;
+  }
+
+  .map-card:active {
+    background: rgba(74, 158, 255, 0.2);
+  }
+
+  .map-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    color: #4a9eff;
+  }
+
+  .map-card-title {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .map-card-desc {
+    display: block;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
   }
 
   .title {

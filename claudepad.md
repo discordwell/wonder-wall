@@ -2,6 +2,19 @@
 
 ## Session Summaries
 
+### 2026-04-13T02:52Z — Phase 2 Camera Panel Mapping
+Added camera-assisted panel identification:
+- ArUco marker grid pattern (ARUCO_MIP_36h12 dictionary, 48 markers embedded, renders 10x10 marker grids)
+- Sequential flash pattern (animated, lights up panels one at a time)
+- Camera service (getUserMedia rear camera, frame capture)
+- ArUco detection service (js-aruco2 wrapper, marker detection, panel map building)
+- CameraMapper component (full workflow: camera preview → capture → detect → results → save)
+- Panel map persistence (IndexedDB) with JSON export
+- "Map Panels" button in picker and overlay
+- js-aruco2 code-split to separate chunk (26KB, loaded on demand)
+- 22 tests passing (6 new for ArUco grid + sequential flash)
+- Wet tested: ArUco markers render correctly, sequential flash animates, Map button accessible
+
 ### 2026-04-13T02:12Z — Phase 1 MVP Complete
 Built WonderWall Phase 1 from scratch: a PWA test pattern generator for AV professionals.
 - Researched Novastar ecosystem, NDI/SDVoE/IPMX standards, existing open-source tools (sarakusha/novastar TypeScript library)

@@ -4,6 +4,8 @@ import { smpteBars } from './patterns/smpte-bars.js';
 import { numberedGrid } from './patterns/grid.js';
 import { crosshatch } from './patterns/crosshatch.js';
 import { gradient } from './patterns/gradient.js';
+import { arucoGrid } from './patterns/aruco-grid.js';
+import { sequentialFlash } from './patterns/sequential-flash.js';
 
 const patterns: Map<string, TestPattern> = new Map();
 
@@ -16,6 +18,8 @@ register(smpteBars);
 register(numberedGrid);
 register(crosshatch);
 register(gradient);
+register(arucoGrid);
+register(sequentialFlash);
 
 export function getPattern(id: string): TestPattern | undefined {
   return patterns.get(id);

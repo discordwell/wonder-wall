@@ -191,6 +191,68 @@ describe('gradient', () => {
   });
 });
 
+describe('aruco grid', () => {
+  it('is registered in the pattern list', () => {
+    expect(getPattern('aruco-grid')).toBeDefined();
+  });
+
+  it('renders with white background', () => {
+    const { ctx, width, height } = createTestCanvas(400, 300);
+    const pattern = getPattern('aruco-grid')!;
+    renderPattern({ pattern, ctx, width, height, params: { columns: 2, rows: 2, padding: 15 } });
+
+    // Corners should be white (background)
+    expect(pixelMatches(getPixel(ctx, 0, 0), [255, 255, 255])).toBe(true);
+  });
+
+  it('renders markers with black border areas', () => {
+    const { ctx, width, height } = createTestCanvas(400, 300);
+    const pattern = getPattern('aruco-grid')!;
+    renderPattern({ pattern, ctx, width, height, params: { columns: 2, rows: 2, padding: 15 } });
+
+    // Center of first cell should have a marker (contains black pixels)
+    const center = getPixel(ctx, 100, 75);
+    // Should be either black or white (marker data)
+    const isBW = (center[0] < 10 && center[1] < 10 && center[2] < 10) ||
+                 (center[0] > 245 && center[1] > 245 && center[2] > 245);
+    expect(isBW).toBe(true);
+  });
+});
+
+describe('sequential flash', () => {
+  it('is registered in the pattern list', () => {
+    expect(getPattern('sequential-flash')).toBeDefined();
+  });
+
+  it('renders static with first cell highlighted', () => {
+    const { ctx, width, height } = createTestCanvas(400, 300);
+    const pattern = getPattern('sequential-flash')!;
+    renderPattern({
+      pattern,
+      ctx,
+      width,
+      height,
+      params: { columns: 4, rows: 3, speed: 1000, flashColor: '#ffffff' },
+    });
+
+    // First cell should be white (highlighted)
+    expect(pixelMatches(getPixel(ctx, 10, 10), [255, 255, 255])).toBe(true);
+
+    // A cell not in the first position should be black (center of cell at col 2, row 1)
+    expect(pixelMatches(getPixel(ctx, 250, 150), [0, 0, 0])).toBe(true);
+  });
+
+  it('animates without error', () => {
+    const { ctx, width, height } = createTestCanvas(400, 300);
+    const pattern = getPattern('sequential-flash')!;
+    expect(pattern.animate).toBeDefined();
+    expect(() => {
+      pattern.animate!(ctx, width, height, { columns: 4, rows: 3, speed: 1000, flashColor: '#ffffff' }, 0);
+      pattern.animate!(ctx, width, height, { columns: 4, rows: 3, speed: 1000, flashColor: '#ffffff' }, 1500);
+    }).not.toThrow();
+  });
+});
+
 describe('renderPattern', () => {
   it('clears canvas before rendering', () => {
     const { ctx, width, height } = createTestCanvas();

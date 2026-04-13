@@ -17,6 +17,13 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+function awaitTransaction(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 class MappingStore {
   maps = $state<PanelMap[]>([]);
   current = $state<PanelMap | null>(null);
@@ -26,11 +33,12 @@ class MappingStore {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     const request = store.getAll();
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       request.onsuccess = () => {
         this.maps = request.result;
         resolve();
       };
+      request.onerror = () => reject(request.error);
     });
   }
 
@@ -38,8 +46,8 @@ class MappingStore {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(map);
+    await awaitTransaction(tx);
     this.current = map;
-    // Refresh list
     await this.load();
   }
 
@@ -47,6 +55,7 @@ class MappingStore {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).delete(id);
+    await awaitTransaction(tx);
     if (this.current?.id === id) this.current = null;
     await this.load();
   }

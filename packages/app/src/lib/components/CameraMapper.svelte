@@ -21,6 +21,8 @@
   let markers = $state<DetectedMarker[]>([]);
   let panelMap = $state<PanelMap | null>(null);
   let capturedImageUrl = $state<string | null>(null);
+  let capturedWidth = $state(1920);
+  let capturedHeight = $state(1080);
 
   async function initCamera() {
     try {
@@ -38,6 +40,8 @@
 
     try {
       const frame = captureFrame(video);
+      capturedWidth = frame.width;
+      capturedHeight = frame.height;
 
       // Save captured image for display
       const canvas = document.createElement('canvas');
@@ -130,7 +134,7 @@
         {#if capturedImageUrl}
           <img src={capturedImageUrl} alt="Captured wall" />
           <!-- Draw detected marker overlays -->
-          <svg class="marker-overlay" viewBox="0 0 {video?.videoWidth ?? 1920} {video?.videoHeight ?? 1080}">
+          <svg class="marker-overlay" viewBox="0 0 {capturedWidth} {capturedHeight}" preserveAspectRatio="xMidYMid meet">
             {#each markers as marker}
               <polygon
                 points={marker.corners.map(c => `${c.x},${c.y}`).join(' ')}

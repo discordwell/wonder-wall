@@ -113,7 +113,7 @@
         <span class="pattern-name">{pattern?.name ?? ''}</span>
         <button class="nav-btn" onclick={nextPattern}>&gt;</button>
         {#if onStartMapping}
-          <button class="map-btn" onclick={() => onStartMapping?.(4, 3)}>Map</button>
+          <button class="map-btn" onclick={() => onStartMapping?.((params.columns as number) ?? 4, (params.rows as number) ?? 3)}>Map</button>
         {/if}
         <button class="exit-btn" onclick={onExit}>Exit</button>
       </div>

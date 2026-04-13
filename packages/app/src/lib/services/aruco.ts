@@ -28,8 +28,9 @@ let detector: any = null;
 
 async function getDetector() {
   if (detector) return detector;
-  // js-aruco2 uses CJS exports; dynamic import via Vite
-  const { AR } = await import('js-aruco2/src/aruco.js');
+  // js-aruco2 uses legacy `this.AR = AR` pattern; Vite CJS interop varies
+  const mod = await import('js-aruco2/src/aruco.js');
+  const AR = mod.AR ?? (mod as any).default?.AR ?? (mod as any).default;
   detector = new AR.Detector({ dictionaryName: 'ARUCO_MIP_36h12' });
   return detector;
 }

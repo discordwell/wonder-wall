@@ -1,0 +1,13 @@
+{
+  "name": "wonder-wall",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/app",
+    "build": "npm run build --workspace=packages/patterns && npm run build --workspace=packages/app",
+    "test": "npm run test --workspaces --if-present",
+    "preview": "npm run preview --workspace=packages/app"
+  }
+}

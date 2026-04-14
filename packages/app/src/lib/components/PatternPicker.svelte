@@ -6,9 +6,11 @@
     selected: string | undefined;
     onSelect: (id: string) => void;
     onStartMapping?: (cols: number, rows: number) => void;
+    onNetworkMode?: () => void;
+    networkConnected?: boolean;
   }
 
-  let { selected, onSelect, onStartMapping }: Props = $props();
+  let { selected, onSelect, onStartMapping, onNetworkMode, networkConnected }: Props = $props();
 
   const patterns = getAllPatterns();
   let thumbnails: Map<string, string> = $state(new Map());
@@ -37,10 +39,10 @@
     <p class="subtitle">Tap a pattern to display fullscreen</p>
   </header>
 
-  {#if onStartMapping}
-    <div class="map-section">
-      <button class="map-card" onclick={() => onStartMapping?.(4, 3)}>
-        <div class="map-icon">
+  <div class="actions-row">
+    {#if onStartMapping}
+      <button class="action-card" onclick={() => onStartMapping?.(4, 3)}>
+        <div class="action-icon">
           <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="4" y="4" width="16" height="12" rx="2" />
             <rect x="28" y="4" width="16" height="12" rx="2" />
@@ -50,13 +52,30 @@
             <line x1="24" y1="35" x2="24" y2="28" />
           </svg>
         </div>
-        <div class="map-card-info">
-          <span class="map-card-title">Map Panels</span>
-          <span class="map-card-desc">Camera-assisted panel identification</span>
+        <div>
+          <span class="action-title">Map Panels</span>
+          <span class="action-desc">Camera-assisted panel ID</span>
         </div>
       </button>
-    </div>
-  {/if}
+    {/if}
+    {#if onNetworkMode}
+      <button class="action-card network" class:connected={networkConnected} onclick={() => onNetworkMode?.()}>
+        <div class="action-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="24" cy="24" r="4" />
+            <path d="M14 34a14 14 0 0 1 0-20" />
+            <path d="M34 14a14 14 0 0 1 0 20" />
+            <path d="M8 40a22 22 0 0 1 0-32" />
+            <path d="M40 8a22 22 0 0 1 0 32" />
+          </svg>
+        </div>
+        <div>
+          <span class="action-title">{networkConnected ? 'Connected' : 'Network Mode'}</span>
+          <span class="action-desc">{networkConnected ? 'Remote display active' : 'Control a remote display'}</span>
+        </div>
+      </button>
+    {/if}
+  </div>
 
   <div class="grid">
     {#each patterns as pattern}
@@ -93,44 +112,64 @@
     margin-bottom: 24px;
   }
 
-  .map-section {
+  .actions-row {
     max-width: 1200px;
     margin: 0 auto 16px;
+    display: flex;
+    gap: 10px;
   }
 
-  .map-card {
-    width: 100%;
+  .action-card {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     background: rgba(74, 158, 255, 0.1);
     border: 1px solid rgba(74, 158, 255, 0.3);
     border-radius: 12px;
-    padding: 16px 20px;
+    padding: 14px 16px;
     cursor: pointer;
     color: white;
     text-align: left;
     transition: background 0.15s;
   }
 
-  .map-card:active {
+  .action-card:active {
     background: rgba(74, 158, 255, 0.2);
   }
 
-  .map-icon {
-    width: 48px;
-    height: 48px;
+  .action-card.network {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .action-card.network.connected {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.3);
+  }
+
+  .action-icon {
+    width: 36px;
+    height: 36px;
     flex-shrink: 0;
     color: #4a9eff;
   }
 
-  .map-card-title {
+  .action-card.network .action-icon {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .action-card.network.connected .action-icon {
+    color: #4ade80;
+  }
+
+  .action-title {
     display: block;
     font-size: 16px;
     font-weight: 600;
   }
 
-  .map-card-desc {
+  .action-desc {
     display: block;
     font-size: 13px;
     color: rgba(255, 255, 255, 0.5);

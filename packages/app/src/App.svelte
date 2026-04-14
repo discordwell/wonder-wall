@@ -3,61 +3,124 @@
   import PatternPicker from './lib/components/PatternPicker.svelte';
   import ControlOverlay from './lib/components/ControlOverlay.svelte';
   import CameraMapper from './lib/components/CameraMapper.svelte';
+  import ModeSelector from './lib/components/ModeSelector.svelte';
+  import ConnectionStatus from './lib/components/ConnectionStatus.svelte';
   import { patternStore } from './lib/stores/pattern.svelte.ts';
+  import { connectionStore } from './lib/stores/connection.svelte.ts';
   import type { PanelMap } from './lib/services/aruco.ts';
 
-  type View = 'picker' | 'fullscreen' | 'mapper';
+  type View = 'picker' | 'fullscreen' | 'mapper' | 'network-setup';
   let view = $state<View>('picker');
   let mapColumns = $state(4);
   let mapRows = $state(3);
 
+  function selectPattern(id: string) {
+    patternStore.select(id);
+    if (connectionStore.isConnected) {
+      connectionStore.setPattern(id, patternStore.params);
+    }
+  }
+
+  function changeParam(key: string, value: unknown) {
+    patternStore.setParam(key, value);
+    if (connectionStore.isConnected && patternStore.current) {
+      connectionStore.setPattern(patternStore.current.id, patternStore.params);
+    }
+  }
+
   function startMapping(cols: number, rows: number) {
     mapColumns = cols;
     mapRows = rows;
-    // Show ArUco grid pattern first, then switch to mapper
     patternStore.select('aruco-grid');
     patternStore.setParam('columns', cols);
     patternStore.setParam('rows', rows);
+    if (connectionStore.isConnected) {
+      connectionStore.setPattern('aruco-grid', patternStore.params);
+    }
     view = 'mapper';
   }
 
-  function onMapComplete(map: PanelMap) {
+  function onMapComplete(_map: PanelMap) {
     view = 'picker';
   }
 </script>
 
 {#if view === 'fullscreen'}
-  <PatternCanvas
-    pattern={patternStore.current}
-    params={patternStore.params}
-  />
+  <!-- Phone-direct mode: render pattern on this screen -->
+  {#if !connectionStore.isConnected}
+    <PatternCanvas
+      pattern={patternStore.current}
+      params={patternStore.params}
+    />
+  {/if}
   <ControlOverlay
     pattern={patternStore.current}
     params={patternStore.params}
     onExit={() => view = 'picker'}
-    onPatternChange={(id) => patternStore.select(id)}
-    onParamChange={(key, value) => patternStore.setParam(key, value)}
+    onPatternChange={selectPattern}
+    onParamChange={changeParam}
     onStartMapping={startMapping}
   />
+
 {:else if view === 'mapper'}
-  <!-- ArUco pattern stays on screen (mirrors to HDMI), camera captures over it -->
-  <PatternCanvas
-    pattern={patternStore.current}
-    params={patternStore.params}
-  />
+  {#if !connectionStore.isConnected}
+    <PatternCanvas
+      pattern={patternStore.current}
+      params={patternStore.params}
+    />
+  {/if}
   <CameraMapper
     columns={mapColumns}
     rows={mapRows}
     onComplete={onMapComplete}
     onCancel={() => view = 'fullscreen'}
   />
+
+{:else if view === 'network-setup'}
+  <div class="setup-page">
+    <button class="back-btn" onclick={() => view = 'picker'}>&larr; Back</button>
+    <ModeSelector onConnected={() => view = 'picker'} />
+  </div>
+
 {:else}
-  <PatternPicker
-    selected={patternStore.current?.id}
-    onSelect={(id) => {
-      patternStore.select(id);
-      view = 'fullscreen';
-    }}
-    onStartMapping={startMapping}
-  />
+  <div class="picker-page">
+    {#if connectionStore.isConnected}
+      <ConnectionStatus onDisconnect={() => {}} />
+    {/if}
+    <PatternPicker
+      selected={patternStore.current?.id}
+      onSelect={(id) => {
+        selectPattern(id);
+        view = 'fullscreen';
+      }}
+      onStartMapping={startMapping}
+      onNetworkMode={() => view = 'network-setup'}
+      networkConnected={connectionStore.isConnected}
+    />
+  </div>
 {/if}
+
+<style>
+  .setup-page {
+    width: 100%;
+    height: 100%;
+    background: #111;
+    overflow-y: auto;
+  }
+
+  .back-btn {
+    background: none;
+    border: none;
+    color: #4a9eff;
+    font-size: 16px;
+    padding: 16px 20px;
+    cursor: pointer;
+  }
+
+  .picker-page {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+</style>

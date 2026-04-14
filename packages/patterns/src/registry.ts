@@ -6,6 +6,11 @@ import { crosshatch } from './patterns/crosshatch.js';
 import { gradient } from './patterns/gradient.js';
 import { arucoGrid } from './patterns/aruco-grid.js';
 import { sequentialFlash } from './patterns/sequential-flash.js';
+import { pixelWalk } from './patterns/pixel-walk.js';
+import { colorWash } from './patterns/color-wash.js';
+import { alignmentCrosses } from './patterns/alignment.js';
+import { resolutionCheck } from './patterns/resolution.js';
+import { brightnessSteps } from './patterns/brightness-steps.js';
 
 const patterns: Map<string, TestPattern> = new Map();
 
@@ -20,6 +25,11 @@ register(crosshatch);
 register(gradient);
 register(arucoGrid);
 register(sequentialFlash);
+register(pixelWalk);
+register(colorWash);
+register(alignmentCrosses);
+register(resolutionCheck);
+register(brightnessSteps);
 
 export function getPattern(id: string): TestPattern | undefined {
   return patterns.get(id);

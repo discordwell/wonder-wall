@@ -2,6 +2,16 @@
 
 ## Session Summaries
 
+### 2026-04-14T13:00Z — Phase 3 Networked Mode + Tier 2 Patterns
+Added networked mode and 5 Tier 2 patterns:
+- Hono server with WebSocket hub (ws/control for phone, ws/output for HDMI device)
+- Self-contained output page (/output) with inline pattern renderers — no build step needed
+- Phone app: ModeSelector, ConnectionStatus, WebSocket client service, connection store
+- Pattern commands relayed phone → server → HDMI output in real-time
+- 5 Tier 2 patterns: Pixel Walk, Color Wash, Alignment Crosses, Resolution Check, Brightness Steps
+- WebSocket relay tested end-to-end (controller → output)
+- Server runs with `npx tsx packages/server/src/index.ts` or `npm run dev:server`
+
 ### 2026-04-13T02:52Z — Phase 2 Camera Panel Mapping
 Added camera-assisted panel identification:
 - ArUco marker grid pattern (ARUCO_MIP_36h12 dictionary, 48 markers embedded, renders 10x10 marker grids)

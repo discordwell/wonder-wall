@@ -6,8 +6,10 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=packages/app",
+    "dev:server": "npm run dev --workspace=packages/server",
     "build": "npm run build --workspace=packages/patterns && npm run build --workspace=packages/app",
     "test": "npm run test --workspaces --if-present",
-    "preview": "npm run preview --workspace=packages/app"
+    "preview": "npm run preview --workspace=packages/app",
+    "server": "npm run start --workspace=packages/server"
   }
 }

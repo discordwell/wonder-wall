@@ -5,6 +5,7 @@
   import CameraMapper from './lib/components/CameraMapper.svelte';
   import ModeSelector from './lib/components/ModeSelector.svelte';
   import ConnectionStatus from './lib/components/ConnectionStatus.svelte';
+  import NovastarPanel from './lib/components/NovastarPanel.svelte';
   import { patternStore } from './lib/stores/pattern.svelte.ts';
   import { connectionStore } from './lib/stores/connection.svelte.ts';
   import type { PanelMap } from './lib/services/aruco.ts';
@@ -96,7 +97,11 @@
       onStartMapping={startMapping}
       onNetworkMode={() => view = 'network-setup'}
       networkConnected={connectionStore.isConnected}
-    />
+    >
+      {#if connectionStore.isConnected}
+        <NovastarPanel novaState={connectionStore.novastar} />
+      {/if}
+    </PatternPicker>
   </div>
 {/if}
 

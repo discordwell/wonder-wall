@@ -3,7 +3,8 @@ export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 export interface WsCallbacks {
   onStateChange: (state: ConnectionState) => void;
   onPattern: (id: string, params: Record<string, unknown>) => void;
-  onStatus: (outputClients: number) => void;
+  onStatus: (outputClients: number, extra?: any) => void;
+  onNovastarResult?: (msg: any) => void;
 }
 
 let ws: WebSocket | null = null;
@@ -27,7 +28,9 @@ export function connect(url: string, cbs: WsCallbacks) {
       if (msg.type === 'pattern') {
         cbs.onPattern(msg.id, msg.params ?? {});
       } else if (msg.type === 'status') {
-        cbs.onStatus(msg.outputClients);
+        cbs.onStatus(msg.outputClients, msg);
+      } else if (msg.type === 'novastarResult') {
+        cbs.onNovastarResult?.(msg);
       }
     } catch {
       // Ignore malformed messages
@@ -61,6 +64,12 @@ export function disconnect() {
 export function sendPattern(id: string, params: Record<string, unknown>) {
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'setPattern', id, params }));
+  }
+}
+
+export function sendRaw(data: string) {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(data);
   }
 }
 

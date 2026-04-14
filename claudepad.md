@@ -2,6 +2,16 @@
 
 ## Session Summaries
 
+### 2026-04-14T13:11Z — Phase 4 Novastar Integration
+Integrated @novastar packages for controlling LED video wall controllers:
+- Novastar service: connect via TCP port 5200, read/set brightness (global + RGB), test modes, device info
+- REST API routes at /api/novastar/* (status, connect, disconnect, brightness, test-mode, discover)
+- WebSocket protocol extended: phone sends `{type:"novastar", action:"setBrightness", value:200}` etc.
+- NovastarPanel component: connection input, brightness sliders (global + R/G/B), built-in test mode buttons
+- Panel appears in picker when connected to server
+- Server broadcasts novastar connection status in WS status messages
+- All @novastar/native API methods imported selectively to minimize bundle
+
 ### 2026-04-14T13:00Z — Phase 3 Networked Mode + Tier 2 Patterns
 Added networked mode and 5 Tier 2 patterns:
 - Hono server with WebSocket hub (ws/control for phone, ws/output for HDMI device)

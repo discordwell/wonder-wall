@@ -2,15 +2,18 @@
   import { getAllPatterns, getDefaultParams, renderPattern, type TestPattern } from '@wonderwall/patterns';
   import { onMount } from 'svelte';
 
+  import type { Snippet } from 'svelte';
+
   interface Props {
     selected: string | undefined;
     onSelect: (id: string) => void;
     onStartMapping?: (cols: number, rows: number) => void;
     onNetworkMode?: () => void;
     networkConnected?: boolean;
+    children?: Snippet;
   }
 
-  let { selected, onSelect, onStartMapping, onNetworkMode, networkConnected }: Props = $props();
+  let { selected, onSelect, onStartMapping, onNetworkMode, networkConnected, children }: Props = $props();
 
   const patterns = getAllPatterns();
   let thumbnails: Map<string, string> = $state(new Map());
@@ -77,6 +80,12 @@
     {/if}
   </div>
 
+  {#if children}
+    <div class="extra-section">
+      {@render children()}
+    </div>
+  {/if}
+
   <div class="grid">
     {#each patterns as pattern}
       <button
@@ -110,6 +119,11 @@
   .picker-header {
     text-align: center;
     margin-bottom: 24px;
+  }
+
+  .extra-section {
+    max-width: 1200px;
+    margin: 0 auto 16px;
   }
 
   .actions-row {

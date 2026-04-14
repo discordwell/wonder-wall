@@ -53,6 +53,10 @@ app.get('/output', async (c) => {
   return c.html(html);
 });
 
+// Novastar API routes
+import { novastar as novastarRoutes } from './routes/novastar.js';
+app.route('/api/novastar', novastarRoutes);
+
 // Health check
 app.get('/', (c) => c.json({ name: 'WonderWall Server', version: '0.1.0' }));
 

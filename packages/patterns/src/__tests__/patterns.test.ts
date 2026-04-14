@@ -3,13 +3,29 @@ import { getPattern, getAllPatterns, getDefaultParams, renderPattern } from '../
 import { createTestCanvas, getPixel, pixelMatches } from './helpers.js';
 
 describe('registry', () => {
-  it('has all Tier 1 patterns registered', () => {
-    const ids = getAllPatterns().map((p) => p.id);
+  it('has all 16 patterns registered', () => {
+    const all = getAllPatterns();
+    expect(all.length).toBe(16);
+    const ids = all.map((p) => p.id);
+    // Tier 1
     expect(ids).toContain('solid');
     expect(ids).toContain('smpte-bars');
     expect(ids).toContain('numbered-grid');
     expect(ids).toContain('crosshatch');
     expect(ids).toContain('gradient');
+    expect(ids).toContain('aruco-grid');
+    expect(ids).toContain('sequential-flash');
+    // Tier 2
+    expect(ids).toContain('pixel-walk');
+    expect(ids).toContain('color-wash');
+    expect(ids).toContain('alignment-crosses');
+    expect(ids).toContain('resolution-check');
+    expect(ids).toContain('brightness-steps');
+    // Tier 3
+    expect(ids).toContain('custom-text');
+    expect(ids).toContain('seam-finder');
+    expect(ids).toContain('motion-test');
+    expect(ids).toContain('uniformity-white');
   });
 
   it('returns undefined for unknown pattern', () => {
@@ -250,6 +266,54 @@ describe('sequential flash', () => {
       pattern.animate!(ctx, width, height, { columns: 4, rows: 3, speed: 1000, flashColor: '#ffffff' }, 0);
       pattern.animate!(ctx, width, height, { columns: 4, rows: 3, speed: 1000, flashColor: '#ffffff' }, 1500);
     }).not.toThrow();
+  });
+});
+
+describe('custom text', () => {
+  it('renders text on black background', () => {
+    const { ctx, width, height } = createTestCanvas(400, 200);
+    const pattern = getPattern('custom-text')!;
+    renderPattern({ pattern, ctx, width, height, params: { text: 'TEST', fontSize: 60, color: '#ffffff', bgColor: '#000000', showInfo: false } });
+    // Background should be black at corners
+    expect(pixelMatches(getPixel(ctx, 0, 0), [0, 0, 0])).toBe(true);
+  });
+});
+
+describe('seam finder', () => {
+  it('renders without error at various grid sizes', () => {
+    const pattern = getPattern('seam-finder')!;
+    for (const [c, r] of [[2, 2], [4, 3], [8, 6]]) {
+      const { ctx, width, height } = createTestCanvas(400, 300);
+      expect(() => renderPattern({ pattern, ctx, width, height, params: { columns: c, rows: r, bandWidth: 8, color1: '#ff0000', color2: '#00ff00' } })).not.toThrow();
+    }
+  });
+});
+
+describe('motion test', () => {
+  it('animates without error', () => {
+    const pattern = getPattern('motion-test')!;
+    const { ctx, width, height } = createTestCanvas(400, 300);
+    expect(pattern.animate).toBeDefined();
+    expect(() => pattern.animate!(ctx, width, height, { barWidth: 40, speed: 200, direction: 'horizontal', color: '#ffffff' }, 500)).not.toThrow();
+  });
+});
+
+describe('uniformity white', () => {
+  it('renders 50% white correctly', () => {
+    const { ctx, width, height } = createTestCanvas(200, 200);
+    const pattern = getPattern('uniformity-white')!;
+    renderPattern({ pattern, ctx, width, height, params: { brightness: '50' } });
+    const pixel = getPixel(ctx, 100, 100);
+    // 50% of 255 = 128
+    expect(Math.abs(pixel[0] - 128)).toBeLessThan(3);
+  });
+
+  it('renders 100% as pure white', () => {
+    const { ctx, width, height } = createTestCanvas(200, 200);
+    const pattern = getPattern('uniformity-white')!;
+    renderPattern({ pattern, ctx, width, height, params: { brightness: '100' } });
+    const pixel = getPixel(ctx, 100, 10);
+    expect(pixel[0]).toBeGreaterThan(250);
   });
 });
 

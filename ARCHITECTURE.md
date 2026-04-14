@@ -1,92 +1,88 @@
 # WonderWall Architecture
 
-Video wall test pattern generator and panel identification tool for AV professionals.
+Video wall test pattern generator, panel identification tool, and Novastar controller for AV professionals.
 
 ## Overview
 
-WonderWall is a PWA that replaces the need for a Windows PC running NovaLCT to display test patterns on LED video walls. A tech installs the app on their phone, plugs in a USB-C to HDMI adapter, and runs test patterns directly. For advanced setups, a networked device handles HDMI output while the phone acts as a wireless remote.
+WonderWall replaces the need for a Windows PC running NovaLCT to display test patterns and control LED video walls. It runs as a PWA on any phone — plug in a USB-C to HDMI adapter and go. For advanced setups, a server handles HDMI output while the phone acts as a wireless remote, optionally controlling a Novastar controller on the network.
 
-## System Architecture
+## System Modes
 
+### Phone-Direct Mode
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    Phone (PWA)                           │
-│  ┌──────────┐  ┌───────────┐  ┌───────────────────────┐ │
-│  │ Pattern   │  │ Control   │  │ Camera Mapper         │ │
-│  │ Picker    │  │ Overlay   │  │ (ArUco detection)     │ │
-│  └─────┬────┘  └─────┬─────┘  └───────────┬───────────┘ │
-│        └──────┬──────┘                     │             │
-│         ┌─────┴─────┐                     │             │
-│         │ Pattern    │  ◄──────────────────┘             │
-│         │ Canvas     │                                   │
-│         └─────┬──────┘                                   │
-│               │ imports                                  │
-│         ┌─────┴──────────┐                               │
-│         │ @wonderwall/    │                               │
-│         │ patterns        │  (framework-agnostic)        │
-│         └────────────────┘                               │
-└──────────┬───────────────────────────────────────────────┘
-           │ USB-C to HDMI (mirror)
-           ▼
-    ┌──────────────┐
-    │  Video Wall  │
-    │  (Novastar)  │
-    └──────────────┘
+Phone (PWA) ──USB-C/HDMI──► Video Wall
 ```
+Phone renders patterns fullscreen. Tap to toggle controls. Camera mapping works via rear camera while pattern stays on HDMI.
 
-### Networked Mode (Phase 3)
-
+### Networked Mode
 ```
 Phone (WiFi) ──WebSocket──► Server ──HDMI──► Video Wall
-                              │
-                              └──TCP:5200──► Novastar Controller
+                               │
+                               └──TCP:5200──► Novastar Controller
 ```
+Server renders patterns on the HDMI output. Phone is a wireless remote with full controls. Novastar integration available.
 
 ## Package Structure
 
 ### `packages/patterns` — Pattern Library
-Framework-agnostic, pure TypeScript. Takes a `CanvasRenderingContext2D`, dimensions, and parameters, draws a pattern. Shared between the phone app and the server output page.
+Framework-agnostic, pure TypeScript. 16 patterns across 3 tiers.
 
-Key files:
-- `src/types.ts` — `TestPattern` and `PatternParameter` interfaces
-- `src/registry.ts` — Pattern registration and lookup
-- `src/renderer.ts` — Canvas rendering orchestrator + animation loop
-- `src/patterns/` — Individual pattern implementations
+| Tier | Patterns |
+|------|----------|
+| Essential | Solid Color, SMPTE Bars, Numbered Grid, Crosshatch, Gradient Ramp, Panel ID Markers (ArUco), Sequential Flash |
+| Professional | Pixel Walk, Color Wash, Alignment Crosses, Resolution Check, Brightness Steps |
+| Advanced | Custom Text, Seam Finder, Motion Test, Uniformity White |
 
-### `packages/app` — Svelte PWA
-The phone app. Svelte 5 + Vite. Handles fullscreen display, tap-to-toggle control overlay, pattern parameter editing, and camera-based panel mapping.
-
-Key files:
-- `src/App.svelte` — Root: switches between picker view and fullscreen view
-- `src/lib/components/PatternCanvas.svelte` — Fullscreen canvas with DPR-aware rendering
-- `src/lib/components/ControlOverlay.svelte` — Translucent bottom sheet with tap-toggle, double-tap lock
-- `src/lib/stores/pattern.ts` — Reactive pattern state (current pattern, params, prev/next)
-
-### `packages/server` — Networked Mode (Phase 3)
-Hono + WebSocket server. Relays pattern commands from phone to HDMI output. Optionally integrates with Novastar controllers via `@novastar/net`.
-
-## Key Design Decisions
-
-1. **Patterns are pure functions** — No framework dependency. `render(ctx, w, h, params)` draws to any Canvas context. This enables the same patterns to render on the phone, a server output page, or in tests.
-
-2. **Decoupled modules** — The pattern generator works standalone. Novastar integration is optional and server-side only. Camera mapping works in both phone-direct and networked modes.
-
-3. **Canvas 2D over WebGL** — Test patterns are static 2D graphics. Canvas 2D is simpler, faster to initialize, lower power on mobile, and has zero compatibility issues.
-
-4. **PWA over native app** — No App Store review, works on any device with a browser, instant updates, installable with offline support.
-
-## Test Pattern Interface
-
+All patterns implement a common interface:
 ```typescript
 interface TestPattern {
   id: string;
   name: string;
   category: 'essential' | 'professional' | 'advanced';
-  description: string;
   parameters: PatternParameter[];
-  render(ctx, w, h, params): void;
-  animate?(ctx, w, h, params, time): void;
+  render(ctx: CanvasRenderingContext2D, w: number, h: number, params): void;
+  animate?(ctx: CanvasRenderingContext2D, w: number, h: number, params, time: number): void;
 }
 ```
 
-Static patterns implement `render`. Animated patterns implement `animate` and are driven by `requestAnimationFrame`.
+### `packages/app` — Svelte 5 PWA
+Phone app. Pattern picker, fullscreen display, overlay controls, camera-assisted panel mapping, network mode, Novastar controls, preset manager.
+
+Key components:
+- `PatternCanvas` — Fullscreen canvas with DPR-aware rendering
+- `ControlOverlay` — Tap-to-toggle bottom sheet with pattern nav, params, presets
+- `CameraMapper` — ArUco marker detection workflow
+- `NovastarPanel` — Brightness sliders + test mode controls
+- `PresetBar` — Save/load pattern + params combinations
+
+### `packages/server` — Hono Server
+Networked mode server. WebSocket hub + HDMI output page + Novastar integration.
+
+- `/output` — Self-contained HTML page that renders patterns fullscreen
+- `/ws/control` — WebSocket for phone controllers
+- `/ws/output` — WebSocket for HDMI output clients
+- `/api/novastar/*` — REST API for Novastar controller operations
+
+## Key Design Decisions
+
+1. **Patterns are pure functions** — `render(ctx, w, h, params)` draws to any Canvas context. Shared between phone, server output, and tests.
+
+2. **Decoupled modules** — Pattern generator works standalone. Camera mapping works in phone-direct mode. Novastar integration is server-side only.
+
+3. **Camera + HDMI are independent** — `getUserMedia` captures from the rear camera while the screen outputs via HDMI. No unplugging needed for panel mapping.
+
+4. **Self-contained output page** — The server's output page has inline pattern renderers. No build pipeline needed for the HDMI display device.
+
+5. **WebSocket protocol** — Simple JSON messages. Phone sends `{type: "setPattern", id, params}`. Server relays to output. Novastar commands: `{type: "novastar", action, ...params}`.
+
+## Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Svelte 5 + Vite |
+| Rendering | Canvas 2D |
+| PWA | vite-plugin-pwa (Workbox) |
+| Server | Hono + @hono/node-ws |
+| ArUco | js-aruco2 (ARUCO_MIP_36h12) |
+| Novastar | @novastar/codec + @novastar/net + @novastar/native |
+| Monorepo | npm workspaces |

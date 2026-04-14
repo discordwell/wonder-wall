@@ -2,6 +2,16 @@
 
 ## Session Summaries
 
+### 2026-04-14T16:04Z — Phase 5 Polish (Tier 3 + Presets)
+Final polish phase:
+- 4 Tier 3 patterns: Custom Text, Seam Finder, Motion Test (animated), Uniformity White
+- Preset manager: save/load pattern + params combinations via localStorage, PresetBar component
+- Updated ARCHITECTURE.md with full system documentation
+- Updated CLAUDE.md with deploy instructions
+- Output page updated with all 16 pattern renderers
+- 27 tests passing (5 new for Tier 3 patterns + registry count test)
+- Total: 16 patterns, 3 tiers, 3 deployment modes, Novastar integration, preset manager
+
 ### 2026-04-14T13:11Z — Phase 4 Novastar Integration
 Integrated @novastar packages for controlling LED video wall controllers:
 - Novastar service: connect via TCP port 5200, read/set brightness (global + RGB), test modes, device info

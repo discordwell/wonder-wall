@@ -11,6 +11,10 @@ import { colorWash } from './patterns/color-wash.js';
 import { alignmentCrosses } from './patterns/alignment.js';
 import { resolutionCheck } from './patterns/resolution.js';
 import { brightnessSteps } from './patterns/brightness-steps.js';
+import { customText } from './patterns/custom-text.js';
+import { seamFinder } from './patterns/seam-finder.js';
+import { motionTest } from './patterns/motion-test.js';
+import { uniformityWhite } from './patterns/uniformity-white.js';
 
 const patterns: Map<string, TestPattern> = new Map();
 
@@ -30,6 +34,10 @@ register(colorWash);
 register(alignmentCrosses);
 register(resolutionCheck);
 register(brightnessSteps);
+register(customText);
+register(seamFinder);
+register(motionTest);
+register(uniformityWhite);
 
 export function getPattern(id: string): TestPattern | undefined {
   return patterns.get(id);

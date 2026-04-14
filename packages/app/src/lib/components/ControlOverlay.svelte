@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAllPatterns, type TestPattern } from '@wonderwall/patterns';
   import ParameterPanel from './ParameterPanel.svelte';
+  import PresetBar from './PresetBar.svelte';
 
   interface Props {
     pattern: TestPattern | null;
@@ -123,6 +124,18 @@
           parameters={pattern.parameters}
           values={params}
           onChange={onParamChange}
+        />
+      {/if}
+
+      {#if pattern}
+        <PresetBar
+          currentPatternId={pattern.id}
+          currentParams={params}
+          onLoad={(id, p) => {
+            onPatternChange(id);
+            for (const [k, v] of Object.entries(p)) onParamChange(k, v);
+            resetHideTimer();
+          }}
         />
       {/if}
     </div>

@@ -247,6 +247,43 @@
           }
         }
       },
+      'custom-text': {
+        render(ctx, w, h, p) {
+          const text = p.text||'WonderWall', fs = p.fontSize||120, color = p.color||'#fff', bg = p.bgColor||'#000';
+          ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
+          ctx.fillStyle=color; ctx.font=`bold ${fs}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText(text,w/2,h/2);
+          if (p.showInfo!==false) { ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='14px sans-serif'; ctx.textBaseline='bottom'; ctx.fillText(`${w} × ${h}`,w/2,h-16); }
+        }
+      },
+      'seam-finder': {
+        render(ctx, w, h, p) {
+          const cols=p.columns||4, rows=p.rows||3, bw=p.bandWidth||8, c1=p.color1||'#f00', c2=p.color2||'#0f0';
+          ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+          const cw=w/cols, ch=h/rows;
+          for (let c=1;c<cols;c++) { const x=Math.round(c*cw); for (let i=0;i<Math.floor(h/bw);i++) { ctx.fillStyle=i%2===0?c1:c2; ctx.fillRect(x-bw,i*bw,bw*2,bw); } }
+          for (let r=1;r<rows;r++) { const y=Math.round(r*ch); for (let i=0;i<Math.floor(w/bw);i++) { ctx.fillStyle=i%2===0?c1:c2; ctx.fillRect(i*bw,y-bw,bw,bw*2); } }
+        }
+      },
+      'motion-test': {
+        animate(ctx, w, h, p, time) {
+          const bw=p.barWidth||40, speed=p.speed||200, color=p.color||'#fff', isH=(p.direction||'horizontal')!=='vertical';
+          ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+          const sp=bw*3, off=(time/1000*speed)%sp; ctx.fillStyle=color;
+          if (isH) { for (let x=-bw+off;x<w;x+=sp) ctx.fillRect(x,0,bw,h); }
+          else { for (let y=-bw+off;y<h;y+=sp) ctx.fillRect(0,y,w,bw); }
+        },
+        render(ctx,w,h,p) { this.animate(ctx,w,h,p,0); }
+      },
+      'uniformity-white': {
+        render(ctx, w, h, p) {
+          const pct=parseInt(p.brightness||'100',10), v=Math.round(pct/100*255);
+          ctx.fillStyle=`rgb(${v},${v},${v})`; ctx.fillRect(0,0,w,h);
+          ctx.fillStyle=v>128?'rgba(0,0,0,0.3)':'rgba(255,255,255,0.3)';
+          ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+          ctx.fillText(`${pct}% White (${v}/255)`,w/2,h-16);
+        }
+      },
     };
 
     // ---- WebSocket connection ----

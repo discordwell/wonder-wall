@@ -13,6 +13,7 @@ import {
   type WallConfig,
   TestMode,
 } from './services/novastar.js';
+import { captureSnapshot, getSnapshots, getSnapshot } from './services/config-backup.js';
 
 export interface PatternCommand {
   type: 'setPattern';
@@ -105,14 +106,39 @@ async function handleNovastarCommand(ws: Client, msg: any) {
         break;
 
       case 'setBrightness':
+        // Auto-backup before change
+        await captureSnapshot(`Before brightness ${msg.channel ?? 'global'} → ${msg.value}`, true, msg.host ?? '').catch(() => {});
         await setBrightness(msg.value, msg.channel ?? 'global');
         result = await readBrightness();
         break;
 
       case 'setTestMode':
+        await captureSnapshot(`Before test mode → ${msg.mode}`, true, msg.host ?? '').catch(() => {});
         await setTestMode(msg.mode as TestMode);
         result = { mode: msg.mode };
         break;
+
+      case 'saveConfig':
+        result = await captureSnapshot(msg.label ?? 'Manual save', false, msg.host ?? '');
+        break;
+
+      case 'getConfigSnapshots':
+        result = { snapshots: getSnapshots() };
+        break;
+
+      case 'restoreConfig': {
+        const snap = getSnapshot(msg.id);
+        if (!snap) { result = { error: 'Snapshot not found' }; break; }
+        // Auto-backup current state before restoring
+        await captureSnapshot(`Before restore → ${snap.label}`, true, snap.deviceAddress).catch(() => {});
+        if (snap.brightness.global >= 0) await setBrightness(snap.brightness.global, 'global').catch(() => {});
+        if (snap.brightness.red >= 0) await setBrightness(snap.brightness.red, 'red').catch(() => {});
+        if (snap.brightness.green >= 0) await setBrightness(snap.brightness.green, 'green').catch(() => {});
+        if (snap.brightness.blue >= 0) await setBrightness(snap.brightness.blue, 'blue').catch(() => {});
+        if (snap.testMode >= 0) await setTestMode(snap.testMode as TestMode).catch(() => {});
+        result = { restored: snap.id, label: snap.label };
+        break;
+      }
 
       default:
         result = { error: `Unknown action: ${msg.action}` };

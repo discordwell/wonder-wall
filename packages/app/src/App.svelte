@@ -7,12 +7,13 @@
   import ConnectionStatus from './lib/components/ConnectionStatus.svelte';
   import NovastarPanel from './lib/components/NovastarPanel.svelte';
   import WallConfig from './lib/components/WallConfig.svelte';
+  import DiagnosticsRunner from './lib/components/DiagnosticsRunner.svelte';
   import { patternStore } from './lib/stores/pattern.svelte.ts';
   import { connectionStore } from './lib/stores/connection.svelte.ts';
   import { wallStore } from './lib/stores/wall.svelte.ts';
   import type { PanelMap } from './lib/services/aruco.ts';
 
-  type View = 'picker' | 'fullscreen' | 'mapper' | 'network-setup';
+  type View = 'picker' | 'fullscreen' | 'mapper' | 'network-setup' | 'diagnostics';
   let view = $state<View>('picker');
 
   // Sync Novastar wall detection into wallStore
@@ -83,6 +84,15 @@
     onCancel={() => view = 'fullscreen'}
   />
 
+{:else if view === 'diagnostics'}
+  <DiagnosticsRunner
+    onSelectPattern={(id, params) => {
+      patternStore.select(id);
+      for (const [k, v] of Object.entries(params)) patternStore.setParam(k, v);
+    }}
+    onClose={() => view = 'picker'}
+  />
+
 {:else if view === 'network-setup'}
   <div class="setup-page">
     <button class="back-btn" onclick={() => view = 'picker'}>&larr; Back</button>
@@ -102,6 +112,7 @@
       }}
       onStartMapping={startMapping}
       onNetworkMode={() => view = 'network-setup'}
+      onDiagnostics={() => view = 'diagnostics'}
       networkConnected={connectionStore.isConnected}
     >
       {#if connectionStore.isConnected}

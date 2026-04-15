@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { captureSnapshot, getSnapshots, getSnapshot, deleteSnapshot } from '../services/config-backup.js';
 import {
   connectToDevice,
   disconnectDevice,
@@ -133,6 +134,24 @@ novastar.post('/test-mode', async (c) => {
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }
+});
+
+// Config backup endpoints
+novastar.get('/configs', (c) => c.json({ snapshots: getSnapshots() }));
+
+novastar.post('/configs/save', async (c) => {
+  try {
+    const { label } = await c.req.json().catch(() => ({ label: 'Manual save' }));
+    const snapshot = await captureSnapshot(label ?? 'Manual save', false, '');
+    return c.json(snapshot);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+novastar.delete('/configs/:id', (c) => {
+  const deleted = deleteSnapshot(c.req.param('id'));
+  return c.json({ deleted });
 });
 
 export { novastar };

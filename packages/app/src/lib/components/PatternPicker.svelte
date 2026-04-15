@@ -10,11 +10,12 @@
     onSelect: (id: string) => void;
     onStartMapping?: () => void;
     onNetworkMode?: () => void;
+    onDiagnostics?: () => void;
     networkConnected?: boolean;
     children?: Snippet;
   }
 
-  let { selected, onSelect, onStartMapping, onNetworkMode, networkConnected, children }: Props = $props();
+  let { selected, onSelect, onStartMapping, onNetworkMode, onDiagnostics, networkConnected, children }: Props = $props();
 
   const patterns = getAllPatterns();
   let thumbnails: Map<string, string> = $state(new Map());
@@ -92,6 +93,21 @@
         <div>
           <span class="action-title">{networkConnected ? 'Connected' : 'Network Mode'}</span>
           <span class="action-desc">{networkConnected ? 'Remote display active' : 'Control a remote display'}</span>
+        </div>
+      </button>
+    {/if}
+    {#if onDiagnostics}
+      <button class="action-card diagnostics" onclick={() => onDiagnostics?.()}>
+        <div class="action-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 36 L16 20 L24 28 L32 12 L40 24" />
+            <line x1="8" y1="40" x2="40" y2="40" />
+            <circle cx="32" cy="12" r="3" fill="currentColor" />
+          </svg>
+        </div>
+        <div>
+          <span class="action-title">Quick Diagnostics</span>
+          <span class="action-desc">Dead pixel scan + health check</span>
         </div>
       </button>
     {/if}
@@ -191,6 +207,15 @@
   }
 
   .action-card.network.connected .action-icon {
+    color: #4ade80;
+  }
+
+  .action-card.diagnostics {
+    background: rgba(74, 222, 128, 0.08);
+    border-color: rgba(74, 222, 128, 0.2);
+  }
+
+  .action-card.diagnostics .action-icon {
     color: #4ade80;
   }
 

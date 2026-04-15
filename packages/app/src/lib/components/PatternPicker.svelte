@@ -1,9 +1,9 @@
 <script lang="ts">
   import { getAllPatterns, getDefaultParams, renderPattern, type TestPattern } from '@wonderwall/patterns';
-  import { onMount } from 'svelte';
 
   import type { Snippet } from 'svelte';
   import WallConfig from './WallConfig.svelte';
+  import { wallStore } from '../stores/wall.svelte.ts';
 
   interface Props {
     selected: string | undefined;
@@ -19,21 +19,35 @@
   const patterns = getAllPatterns();
   let thumbnails: Map<string, string> = $state(new Map());
 
-  onMount(() => {
-    // Render thumbnails for each pattern
+  function renderThumbnails() {
     const canvas = document.createElement('canvas');
     canvas.width = 320;
     canvas.height = 180;
     const ctx = canvas.getContext('2d')!;
+    const wallCols = wallStore.columns;
+    const wallRows = wallStore.rows;
 
     const thumbs = new Map<string, string>();
     for (const p of patterns) {
       const params = getDefaultParams(p);
+      // Override columns/rows with wall config for grid-based patterns
+      for (const param of p.parameters) {
+        if (param.key === 'columns') params.columns = wallCols;
+        if (param.key === 'rows') params.rows = wallRows;
+      }
       renderPattern({ pattern: p, ctx, width: 320, height: 180, params });
       thumbs.set(p.id, canvas.toDataURL('image/png'));
       ctx.clearRect(0, 0, 320, 180);
     }
     thumbnails = thumbs;
+  }
+
+  // Re-render thumbnails when wall config changes
+  $effect(() => {
+    // Access wallStore values to track them reactively
+    wallStore.columns;
+    wallStore.rows;
+    renderThumbnails();
   });
 </script>
 

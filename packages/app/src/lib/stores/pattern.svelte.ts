@@ -1,4 +1,19 @@
 import { getAllPatterns, getPattern, getDefaultParams, type TestPattern } from '@wonderwall/patterns';
+import { wallStore } from './wall.svelte.ts';
+
+// These pattern params should inherit from wall config
+const WALL_PARAM_KEYS = ['columns', 'rows'];
+
+function applyWallDefaults(params: Record<string, unknown>, pattern: TestPattern): Record<string, unknown> {
+  const result = { ...params };
+  for (const p of pattern.parameters) {
+    if (WALL_PARAM_KEYS.includes(p.key)) {
+      if (p.key === 'columns') result[p.key] = wallStore.columns;
+      if (p.key === 'rows') result[p.key] = wallStore.rows;
+    }
+  }
+  return result;
+}
 
 class PatternStore {
   current = $state<TestPattern | null>(null);
@@ -16,7 +31,7 @@ class PatternStore {
     const pattern = getPattern(id);
     if (pattern) {
       this.current = pattern;
-      this.params = getDefaultParams(pattern);
+      this.params = applyWallDefaults(getDefaultParams(pattern), pattern);
     }
   }
 

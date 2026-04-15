@@ -258,11 +258,11 @@
       },
       'seam-finder': {
         render(ctx, w, h, p) {
-          const cols=p.columns||4, rows=p.rows||3, bw=p.bandWidth||8, c1=p.color1||'#f00', c2=p.color2||'#0f0';
+          const cols=p.columns||4, rows=p.rows||3, bpct=p.bandPct||8, c1=p.color1||'#f00', c2=p.color2||'#0f0';
           ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
-          const cw=w/cols, ch=h/rows;
-          for (let c=1;c<cols;c++) { const x=Math.round(c*cw); for (let i=0;i<Math.floor(h/bw);i++) { ctx.fillStyle=i%2===0?c1:c2; ctx.fillRect(x-bw,i*bw,bw*2,bw); } }
-          for (let r=1;r<rows;r++) { const y=Math.round(r*ch); for (let i=0;i<Math.floor(w/bw);i++) { ctx.fillStyle=i%2===0?c1:c2; ctx.fillRect(i*bw,y-bw,bw,bw*2); } }
+          const cw=w/cols, ch=h/rows, bw=Math.max(2,Math.round(Math.min(cw,ch)*bpct/100));
+          for (let c=1;c<cols;c++) { const x=Math.round(c*cw); for (let i=0;i<Math.ceil(h/bw);i++) { ctx.fillStyle=i%2===0?c1:c2; ctx.fillRect(x-bw,i*bw,bw*2,bw); } }
+          for (let r=1;r<rows;r++) { const y=Math.round(r*ch); for (let i=0;i<Math.ceil(w/bw);i++) { ctx.fillStyle=i%2===0?c1:c2; ctx.fillRect(i*bw,y-bw,bw,bw*2); } }
         }
       },
       'motion-test': {

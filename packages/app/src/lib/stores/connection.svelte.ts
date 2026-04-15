@@ -34,7 +34,11 @@ class ConnectionStore {
       onStatus: (outputs, extra) => {
         this.outputClients = outputs;
         if (extra?.novastar) {
-          this.novastar = { ...this.novastar, connected: extra.novastar.connected };
+          this.novastar = {
+            ...this.novastar,
+            connected: extra.novastar.connected,
+            wall: extra.novastar.wall ?? this.novastar.wall,
+          };
         }
       },
       onNovastarResult: (msg) => {

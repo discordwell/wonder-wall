@@ -15,6 +15,10 @@
   let mapColumns = $state(4);
   let mapRows = $state(3);
 
+  // Use Novastar wall config when available
+  const wallColumns = $derived(connectionStore.novastar.wall?.columns ?? mapColumns);
+  const wallRows = $derived(connectionStore.novastar.wall?.rows ?? mapRows);
+
   function selectPattern(id: string) {
     patternStore.select(id);
     if (connectionStore.isConnected) {
@@ -60,7 +64,7 @@
     onExit={() => view = 'picker'}
     onPatternChange={selectPattern}
     onParamChange={changeParam}
-    onStartMapping={startMapping}
+    onStartMapping={(c, r) => startMapping(c || wallColumns, r || wallRows)}
   />
 
 {:else if view === 'mapper'}
@@ -94,7 +98,7 @@
         selectPattern(id);
         view = 'fullscreen';
       }}
-      onStartMapping={startMapping}
+      onStartMapping={(c, r) => startMapping(c || wallColumns, r || wallRows)}
       onNetworkMode={() => view = 'network-setup'}
       networkConnected={connectionStore.isConnected}
     >

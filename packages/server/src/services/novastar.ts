@@ -14,6 +14,16 @@ import '@novastar/native/api/SetBlueBrightness';
 import '@novastar/native/api/ReadSelfTestMode';
 import '@novastar/native/api/SetSelfTestMode';
 import '@novastar/native/api/ReadDisplayMode';
+// Wall layout detection
+import '@novastar/native/api/ReadSender_DVIResolutionWidth';
+import '@novastar/native/api/ReadSender_DVIResolutionHeight';
+import '@novastar/native/api/ReadNumberOfCardOrScanBoardInPort';
+import '@novastar/native/api/ReadModuleWidth';
+import '@novastar/native/api/ReadModuleHeight';
+import '@novastar/native/api/ReadPortWidth';
+import '@novastar/native/api/ReadPortHeight';
+import '@novastar/native/api/ReadEthernetPortScannerX';
+import '@novastar/native/api/ReadEthernetPortScannerY';
 
 const NOVASTAR_PORT = 5200;
 const CONNECT_TIMEOUT = 5000;
@@ -22,6 +32,26 @@ export interface NovastarDeviceInfo {
   address: string;
   modelId: number | null;
   connected: boolean;
+}
+
+export interface CabinetInfo {
+  port: number;
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface WallConfig {
+  totalWidth: number;
+  totalHeight: number;
+  columns: number;
+  rows: number;
+  cabinetWidth: number;
+  cabinetHeight: number;
+  cabinets: CabinetInfo[];
+  detectedAt: string;
 }
 
 export interface BrightnessInfo {
@@ -47,6 +77,7 @@ let socket: Socket | null = null;
 let connection: Connection<Socket> | null = null;
 let session: (Session<Socket> & Record<string, any>) | null = null;
 let deviceAddress: string | null = null;
+let wallConfig: WallConfig | null = null;
 
 export function isConnected(): boolean {
   return session !== null && socket !== null && !socket.destroyed;
@@ -119,6 +150,85 @@ export function disconnectDevice(): void {
   connection = null;
   socket = null;
   deviceAddress = null;
+  wallConfig = null;
+}
+
+export function getWallConfig(): WallConfig | null {
+  return wallConfig;
+}
+
+/**
+ * Auto-detect the video wall layout by querying the Novastar controller.
+ * Reads total resolution, cabinet dimensions, and scanner positions
+ * to calculate the grid layout.
+ */
+export async function readWallLayout(): Promise<WallConfig | null> {
+  if (!session) throw new Error('Not connected');
+
+  try {
+    // Read total wall resolution
+    const totalWidth = await session.ReadSender_DVIResolutionWidth(0).catch(() => 0);
+    const totalHeight = await session.ReadSender_DVIResolutionHeight(0).catch(() => 0);
+
+    if (totalWidth === 0 || totalHeight === 0) {
+      return null;
+    }
+
+    // Try to read cabinet dimensions from the first receiving card on port 0
+    const cabinetWidth = await session.ReadModuleWidth(0, 0, 0).catch(() => 0);
+    const cabinetHeight = await session.ReadModuleHeight(0, 0, 0).catch(() => 0);
+
+    // Calculate grid from total / cabinet dimensions
+    let columns = 1;
+    let rows = 1;
+    if (cabinetWidth > 0 && cabinetHeight > 0) {
+      columns = Math.round(totalWidth / cabinetWidth);
+      rows = Math.round(totalHeight / cabinetHeight);
+    }
+
+    // Try to read individual cabinet positions
+    const cabinets: CabinetInfo[] = [];
+
+    // Scan ports (typically 1-4 Ethernet ports on a sending card)
+    for (let port = 0; port < 4; port++) {
+      const cardCount = await session.ReadNumberOfCardOrScanBoardInPort(0, port, 0).catch(() => 0);
+      if (cardCount === 0) continue;
+
+      for (let card = 0; card < cardCount; card++) {
+        const x = await session.ReadEthernetPortScannerX(0, port, card).catch(() => -1);
+        const y = await session.ReadEthernetPortScannerY(0, port, card).catch(() => -1);
+        const w = await session.ReadModuleWidth(0, port, card).catch(() => cabinetWidth);
+        const h = await session.ReadModuleHeight(0, port, card).catch(() => cabinetHeight);
+
+        if (x >= 0 && y >= 0) {
+          cabinets.push({ port, index: card, x, y, width: w, height: h });
+        }
+      }
+    }
+
+    // If we got cabinet positions, recalculate grid more accurately
+    if (cabinets.length > 0 && cabinetWidth > 0 && cabinetHeight > 0) {
+      const maxCol = Math.max(...cabinets.map((c) => Math.round(c.x / cabinetWidth)));
+      const maxRow = Math.max(...cabinets.map((c) => Math.round(c.y / cabinetHeight)));
+      columns = maxCol + 1;
+      rows = maxRow + 1;
+    }
+
+    wallConfig = {
+      totalWidth,
+      totalHeight,
+      columns: Math.max(1, columns),
+      rows: Math.max(1, rows),
+      cabinetWidth: cabinetWidth || totalWidth,
+      cabinetHeight: cabinetHeight || totalHeight,
+      cabinets,
+      detectedAt: new Date().toISOString(),
+    };
+
+    return wallConfig;
+  } catch {
+    return null;
+  }
 }
 
 export async function readDeviceInfo(): Promise<{ modelId: number | null }> {

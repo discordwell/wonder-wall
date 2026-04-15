@@ -10,6 +10,8 @@ import {
   setTestMode,
   discoverDevices,
   getStatus,
+  getWallConfig,
+  readWallLayout,
   TestMode,
 } from '../services/novastar.js';
 
@@ -41,9 +43,10 @@ novastar.post('/connect', async (c) => {
     const { host } = await c.req.json();
     if (!host) return c.json({ error: 'host is required' }, 400);
     const info = await connectToDevice(host);
-    // Try to read device info
     const deviceInfo = await readDeviceInfo();
-    return c.json({ ...info, ...deviceInfo });
+    // Auto-detect wall layout
+    const wall = await readWallLayout();
+    return c.json({ ...info, ...deviceInfo, wall });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }
@@ -53,6 +56,28 @@ novastar.post('/connect', async (c) => {
 novastar.post('/disconnect', (c) => {
   disconnectDevice();
   return c.json({ connected: false });
+});
+
+// Read wall layout (auto-detect or return cached)
+novastar.get('/wall', async (c) => {
+  try {
+    const cached = getWallConfig();
+    if (cached) return c.json(cached);
+    const wall = await readWallLayout();
+    return c.json(wall ?? { error: 'Could not detect wall layout' });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// Re-detect wall layout
+novastar.post('/wall/detect', async (c) => {
+  try {
+    const wall = await readWallLayout();
+    return c.json(wall ?? { error: 'Could not detect wall layout' });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
 });
 
 // Read device info

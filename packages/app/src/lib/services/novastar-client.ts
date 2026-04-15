@@ -1,5 +1,14 @@
 import { sendRaw } from './websocket.ts';
 
+export interface WallConfig {
+  totalWidth: number;
+  totalHeight: number;
+  columns: number;
+  rows: number;
+  cabinetWidth: number;
+  cabinetHeight: number;
+}
+
 export interface NovastarState {
   connected: boolean;
   modelId: number | null;
@@ -9,6 +18,7 @@ export interface NovastarState {
     green: number;
     blue: number;
   };
+  wall: WallConfig | null;
   error: string | null;
 }
 
@@ -17,6 +27,7 @@ export function createDefaultNovastarState(): NovastarState {
     connected: false,
     modelId: null,
     brightness: { global: 255, red: 255, green: 255, blue: 255 },
+    wall: null,
     error: null,
   };
 }
@@ -37,6 +48,7 @@ export function handleNovastarResult(msg: any, state: NovastarState): NovastarSt
         ...state,
         connected: msg.connected ?? false,
         modelId: msg.modelId ?? null,
+        wall: msg.wall ?? state.wall,
         error: null,
       };
 
@@ -53,6 +65,20 @@ export function handleNovastarResult(msg: any, state: NovastarState): NovastarSt
           green: msg.green ?? state.brightness.green,
           blue: msg.blue ?? state.brightness.blue,
         },
+        error: null,
+      };
+
+    case 'getWallConfig':
+      return {
+        ...state,
+        wall: msg.columns ? {
+          totalWidth: msg.totalWidth,
+          totalHeight: msg.totalHeight,
+          columns: msg.columns,
+          rows: msg.rows,
+          cabinetWidth: msg.cabinetWidth,
+          cabinetHeight: msg.cabinetHeight,
+        } : state.wall,
         error: null,
       };
 

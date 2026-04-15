@@ -82,6 +82,13 @@
       <button class="btn-small" onclick={handleDisconnect}>Disconnect</button>
     </div>
 
+    {#if novaState.wall}
+      <div class="wall-info">
+        <span class="wall-grid">{novaState.wall.columns} x {novaState.wall.rows}</span>
+        <span class="wall-detail">{novaState.wall.totalWidth}x{novaState.wall.totalHeight}px &middot; {novaState.wall.cabinetWidth}x{novaState.wall.cabinetHeight}px/panel &middot; {novaState.wall.columns * novaState.wall.rows} panels</span>
+      </div>
+    {/if}
+
     <!-- Brightness controls -->
     <div class="brightness-section">
       <h4>Brightness</h4>
@@ -143,6 +150,26 @@
     font-weight: 700;
     color: #ffa500;
     margin-bottom: 12px;
+  }
+
+  .wall-info {
+    background: rgba(255,165,0,0.1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+
+  .wall-grid {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffa500;
+  }
+
+  .wall-detail {
+    display: block;
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 2px;
   }
 
   .connect-section {

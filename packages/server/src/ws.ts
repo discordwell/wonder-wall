@@ -7,7 +7,10 @@ import {
   connectToDevice,
   disconnectDevice,
   readDeviceInfo,
+  readWallLayout,
+  getWallConfig,
   type BrightnessInfo,
+  type WallConfig,
   TestMode,
 } from './services/novastar.js';
 
@@ -21,7 +24,7 @@ export interface StatusMessage {
   type: 'status';
   outputClients: number;
   currentPattern: string | null;
-  novastar: { connected: boolean };
+  novastar: { connected: boolean; wall: WallConfig | null };
 }
 
 type Client = WSContext;
@@ -82,8 +85,13 @@ async function handleNovastarCommand(ws: Client, msg: any) {
       case 'connect':
         await connectToDevice(msg.host);
         const info = await readDeviceInfo();
-        result = { connected: true, ...info };
+        const wall = await readWallLayout();
+        result = { connected: true, ...info, wall };
         broadcastStatus();
+        break;
+
+      case 'getWallConfig':
+        result = getWallConfig() ?? await readWallLayout() ?? { error: 'Could not detect wall layout' };
         break;
 
       case 'disconnect':
@@ -125,7 +133,7 @@ function broadcastStatus() {
     type: 'status',
     outputClients: outputs.size,
     currentPattern: currentPattern?.id ?? null,
-    novastar: { connected: novastarConnected() },
+    novastar: { connected: novastarConnected(), wall: getWallConfig() },
   };
   const data = JSON.stringify(msg);
   for (const ctrl of controllers) {
@@ -138,6 +146,6 @@ export function getStatus() {
     outputClients: outputs.size,
     controllerClients: controllers.size,
     currentPattern: currentPattern?.id ?? null,
-    novastar: { connected: novastarConnected() },
+    novastar: { connected: novastarConnected(), wall: getWallConfig() },
   };
 }

@@ -3,11 +3,12 @@
   import { onMount } from 'svelte';
 
   import type { Snippet } from 'svelte';
+  import WallConfig from './WallConfig.svelte';
 
   interface Props {
     selected: string | undefined;
     onSelect: (id: string) => void;
-    onStartMapping?: (cols: number, rows: number) => void;
+    onStartMapping?: () => void;
     onNetworkMode?: () => void;
     networkConnected?: boolean;
     children?: Snippet;
@@ -42,9 +43,11 @@
     <p class="subtitle">Tap a pattern to display fullscreen</p>
   </header>
 
+  <WallConfig />
+
   <div class="actions-row">
     {#if onStartMapping}
-      <button class="action-card" onclick={() => onStartMapping?.(4, 3)}>
+      <button class="action-card" onclick={() => onStartMapping?.()}>
         <div class="action-icon">
           <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="4" y="4" width="16" height="12" rx="2" />

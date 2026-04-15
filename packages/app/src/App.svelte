@@ -6,18 +6,22 @@
   import ModeSelector from './lib/components/ModeSelector.svelte';
   import ConnectionStatus from './lib/components/ConnectionStatus.svelte';
   import NovastarPanel from './lib/components/NovastarPanel.svelte';
+  import WallConfig from './lib/components/WallConfig.svelte';
   import { patternStore } from './lib/stores/pattern.svelte.ts';
   import { connectionStore } from './lib/stores/connection.svelte.ts';
+  import { wallStore } from './lib/stores/wall.svelte.ts';
   import type { PanelMap } from './lib/services/aruco.ts';
 
   type View = 'picker' | 'fullscreen' | 'mapper' | 'network-setup';
   let view = $state<View>('picker');
-  let mapColumns = $state(4);
-  let mapRows = $state(3);
 
-  // Use Novastar wall config when available
-  const wallColumns = $derived(connectionStore.novastar.wall?.columns ?? mapColumns);
-  const wallRows = $derived(connectionStore.novastar.wall?.rows ?? mapRows);
+  // Sync Novastar wall detection into wallStore
+  $effect(() => {
+    const novaWall = connectionStore.novastar.wall;
+    if (novaWall) {
+      wallStore.set(novaWall.columns, novaWall.rows, true);
+    }
+  });
 
   function selectPattern(id: string) {
     patternStore.select(id);
@@ -33,12 +37,10 @@
     }
   }
 
-  function startMapping(cols: number, rows: number) {
-    mapColumns = cols;
-    mapRows = rows;
+  function startMapping() {
     patternStore.select('aruco-grid');
-    patternStore.setParam('columns', cols);
-    patternStore.setParam('rows', rows);
+    patternStore.setParam('columns', wallStore.columns);
+    patternStore.setParam('rows', wallStore.rows);
     if (connectionStore.isConnected) {
       connectionStore.setPattern('aruco-grid', patternStore.params);
     }
@@ -64,7 +66,7 @@
     onExit={() => view = 'picker'}
     onPatternChange={selectPattern}
     onParamChange={changeParam}
-    onStartMapping={(c, r) => startMapping(c || wallColumns, r || wallRows)}
+    onStartMapping={startMapping}
   />
 
 {:else if view === 'mapper'}
@@ -75,8 +77,8 @@
     />
   {/if}
   <CameraMapper
-    columns={mapColumns}
-    rows={mapRows}
+    columns={wallStore.columns}
+    rows={wallStore.rows}
     onComplete={onMapComplete}
     onCancel={() => view = 'fullscreen'}
   />
@@ -98,7 +100,7 @@
         selectPattern(id);
         view = 'fullscreen';
       }}
-      onStartMapping={(c, r) => startMapping(c || wallColumns, r || wallRows)}
+      onStartMapping={startMapping}
       onNetworkMode={() => view = 'network-setup'}
       networkConnected={connectionStore.isConnected}
     >

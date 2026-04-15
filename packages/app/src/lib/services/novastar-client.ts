@@ -9,6 +9,15 @@ export interface WallConfig {
   cabinetHeight: number;
 }
 
+export interface ConfigSnapshot {
+  id: string;
+  timestamp: string;
+  label: string;
+  auto: boolean;
+  brightness: { global: number; red: number; green: number; blue: number };
+  testMode: number;
+}
+
 export interface NovastarState {
   connected: boolean;
   modelId: number | null;
@@ -19,6 +28,7 @@ export interface NovastarState {
     blue: number;
   };
   wall: WallConfig | null;
+  snapshots: ConfigSnapshot[];
   error: string | null;
 }
 
@@ -28,6 +38,7 @@ export function createDefaultNovastarState(): NovastarState {
     modelId: null,
     brightness: { global: 255, red: 255, green: 255, blue: 255 },
     wall: null,
+    snapshots: [],
     error: null,
   };
 }
@@ -81,6 +92,31 @@ export function handleNovastarResult(msg: any, state: NovastarState): NovastarSt
         } : state.wall,
         error: null,
       };
+
+    case 'getConfigSnapshots':
+      return {
+        ...state,
+        snapshots: (msg.snapshots ?? []).map((s: any) => ({
+          id: s.id,
+          timestamp: s.timestamp,
+          label: s.label,
+          auto: s.auto,
+          brightness: s.brightness,
+          testMode: s.testMode,
+        })),
+        error: null,
+      };
+
+    case 'saveConfig':
+      // Refresh the list after saving
+      sendNovastarCommand('getConfigSnapshots', {});
+      return { ...state, error: null };
+
+    case 'restoreConfig':
+      // Refresh brightness after restore
+      sendNovastarCommand('getBrightness', {});
+      sendNovastarCommand('getConfigSnapshots', {});
+      return { ...state, error: null };
 
     default:
       return { ...state, error: null };

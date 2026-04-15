@@ -10,6 +10,8 @@
   let connectHost = $state('');
   let connecting = $state(false);
   let error = $state<string | null>(null);
+  let saveLabel = $state('');
+  let showingSave = $state(false);
 
   const TEST_MODES = [
     { label: 'Normal', value: 0 },
@@ -47,10 +49,25 @@
     sendNovastarCommand('getBrightness', {});
   }
 
+  function refreshSnapshots() {
+    sendNovastarCommand('getConfigSnapshots', {});
+  }
+
+  function saveConfig() {
+    sendNovastarCommand('saveConfig', { label: saveLabel.trim() || `Save ${new Date().toLocaleTimeString()}` });
+    showingSave = false;
+    saveLabel = '';
+  }
+
+  function restoreConfig(id: string) {
+    sendNovastarCommand('restoreConfig', { id });
+  }
+
   $effect(() => {
     if (novaState.connected) {
       connecting = false;
       refreshBrightness();
+      refreshSnapshots();
     }
   });
 </script>
@@ -132,6 +149,47 @@
           </button>
         {/each}
       </div>
+    </div>
+
+    <!-- Config backups -->
+    <div class="backup-section">
+      <div class="backup-header">
+        <h4>Config Backups</h4>
+        {#if !showingSave}
+          <button class="btn-small" onclick={() => showingSave = true}>Save Current</button>
+        {/if}
+      </div>
+
+      {#if showingSave}
+        <div class="save-form">
+          <input type="text" bind:value={saveLabel} placeholder="Label (optional)"
+            onkeydown={(e) => e.key === 'Enter' && saveConfig()} />
+          <button class="btn-tiny primary" onclick={saveConfig}>Save</button>
+          <button class="btn-tiny" onclick={() => showingSave = false}>Cancel</button>
+        </div>
+      {/if}
+
+      {#if novaState.snapshots.length > 0}
+        <div class="snapshot-list">
+          {#each novaState.snapshots.slice(0, 10) as snap}
+            <div class="snapshot-item">
+              <div class="snap-info">
+                <span class="snap-label">{snap.label}</span>
+                <span class="snap-time">
+                  {new Date(snap.timestamp).toLocaleString()}
+                  {#if snap.auto}<span class="snap-auto">auto</span>{/if}
+                </span>
+              </div>
+              <div class="snap-values">
+                B:{snap.brightness.global} R:{snap.brightness.red} G:{snap.brightness.green} B:{snap.brightness.blue}
+              </div>
+              <button class="restore-btn" onclick={() => restoreConfig(snap.id)}>Restore</button>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="no-snapshots">Changes are auto-backed up. Manual saves appear here.</p>
+      {/if}
     </div>
   {/if}
 </div>
@@ -294,5 +352,105 @@
 
   .test-btn:active {
     background: rgba(255,165,0,0.25);
+  }
+
+  .backup-section { margin-top: 14px; }
+
+  .backup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .save-form {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .save-form input {
+    flex: 1;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: white;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .btn-tiny {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-tiny.primary { background: #ffa500; color: #000; }
+
+  .snapshot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .snapshot-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .snap-info { flex: 1; min-width: 0; }
+  .snap-label {
+    display: block;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .snap-time {
+    display: block;
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+  }
+  .snap-auto {
+    background: rgba(255,165,0,0.2);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    margin-left: 4px;
+    color: #ffa500;
+  }
+  .snap-values {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .restore-btn {
+    background: rgba(255,165,0,0.15);
+    border: 1px solid rgba(255,165,0,0.25);
+    color: #ffa500;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .restore-btn:active { background: rgba(255,165,0,0.3); }
+  .no-snapshots {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    font-style: italic;
   }
 </style>

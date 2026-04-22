@@ -233,6 +233,39 @@ describe('aruco grid', () => {
                  (center[0] > 245 && center[1] > 245 && center[2] > 245);
     expect(isBW).toBe(true);
   });
+
+  it('does not error when cell count exceeds marker bank (labels remain)', () => {
+    // Network-relayed params can exceed the UI's 8x6 limit; the pattern must
+    // remain safe and still identify cells beyond the marker bank by label.
+    const { ctx, width, height } = createTestCanvas(1200, 900);
+    const pattern = getPattern('aruco-grid')!;
+    expect(() =>
+      renderPattern({
+        pattern,
+        ctx,
+        width,
+        height,
+        params: { columns: 10, rows: 8, padding: 15 }, // 80 > 48
+      }),
+    ).not.toThrow();
+
+    // Overflow cell should still have non-white content (the label).
+    // Cell (col=9, row=7) center is at (1140, 787.5). Sample near-center to
+    // find at least one dark pixel where the label sits.
+    const cellW = 120, cellH = 112.5;
+    const cx = Math.floor(9 * cellW + cellW / 2);
+    // Label is below the (missing) marker, centered at cx, sits near the
+    // lower portion of the cell.
+    const labelY = Math.floor(7 * cellH + cellH * 0.85);
+    let darkFound = false;
+    for (let dx = -30; dx <= 30 && !darkFound; dx++) {
+      for (let dy = -10; dy <= 20; dy++) {
+        const px = getPixel(ctx, Math.max(0, cx + dx), Math.max(0, labelY + dy));
+        if (px[0] < 50 && px[1] < 50 && px[2] < 50) { darkFound = true; break; }
+      }
+    }
+    expect(darkFound, 'overflow cell has no visible label').toBe(true);
+  });
 });
 
 describe('sequential flash', () => {

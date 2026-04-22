@@ -92,39 +92,45 @@ export function getStatus(): NovastarDeviceInfo | null {
   };
 }
 
-export async function connectToDevice(host: string): Promise<NovastarDeviceInfo> {
+export async function connectToDevice(
+  host: string,
+  port: number = NOVASTAR_PORT,
+): Promise<NovastarDeviceInfo> {
   // Disconnect any existing connection
   disconnectDevice();
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
+
     const timer = setTimeout(() => {
-      socket?.destroy();
-      reject(new Error(`Connection timeout to ${host}:${NOVASTAR_PORT}`));
+      settle(() => {
+        socket?.destroy();
+        reject(new Error(`Connection timeout to ${host}:${port}`));
+      });
     }, CONNECT_TIMEOUT);
 
-    socket = tcpConnect(NOVASTAR_PORT, host, () => {
-      clearTimeout(timer);
-
-      try {
-        connection = new Connection(socket!);
-        session = new Session(connection) as any;
-        deviceAddress = host;
-
-        resolve({
-          address: host,
-          modelId: null,
-          connected: true,
-        });
-      } catch (err) {
-        clearTimeout(timer);
-        socket?.destroy();
-        reject(err);
-      }
+    socket = tcpConnect(port, host, () => {
+      settle(() => {
+        try {
+          connection = new Connection(socket!);
+          session = new Session(connection) as any;
+          deviceAddress = host;
+          resolve({ address: host, modelId: null, connected: true });
+        } catch (err) {
+          socket?.destroy();
+          reject(err as Error);
+        }
+      });
     });
 
     socket.on('error', (err) => {
-      clearTimeout(timer);
-      reject(new Error(`Failed to connect to ${host}: ${err.message}`));
+      settle(() => reject(new Error(`Failed to connect to ${host}: ${err.message}`)));
     });
 
     socket.on('close', () => {

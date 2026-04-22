@@ -2,6 +2,13 @@
 
 ## Session Summaries
 
+### 2026-04-21T23:30Z — Quality Pass A (bug fixes)
+Full-codebase analysis pass on a long-idle project. Three subagents audited patterns/app/server packages; findings triaged against real code (two flagged items — motion-test inversion and gradient steps=1 — turned out to be false positives from the analysis, so nothing changed in those files). Three real bugs fixed with regression tests:
+- **Output page drift**: server `/output` inline renderers were missing `aruco-grid` entirely and had dropped `numbered-grid`'s `col,row` coordinate label. Added both; added a server-side parity test that enumerates every registry ID and asserts an inline renderer exists in `output/index.html` — catches this drift class going forward.
+- **Novastar `connectToDevice` race**: timer / connect-callback / `'error'` listener could each settle the Promise after another already had. Added `settled` flag + centralized `settle()` helper. Also added an optional `port` param (default 5200) to enable loopback unit tests.
+- **aruco-grid overflow**: `break` only exited the inner loop when cell index exceeded the 48-marker bank; overflow cells rendered blank. Changed to always draw `#N` label, only conditionally draw the marker. Exported `MAX_ARUCO_MARKERS`.
+- Tests: 28 → 48 passing across monorepo (17 parity, 3 novastar-connect, 1 aruco-overflow new). Pass B (cleanup sweep — `getParam` helper, WS protocol typing, `any` removal) is next.
+
 ### 2026-04-14T16:04Z — Phase 5 Polish (Tier 3 + Presets)
 Final polish phase:
 - 4 Tier 3 patterns: Custom Text, Seam Finder, Motion Test (animated), Uniformity White

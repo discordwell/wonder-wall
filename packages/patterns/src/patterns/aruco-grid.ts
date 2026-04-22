@@ -156,7 +156,6 @@ export const arucoGrid: TestPattern = {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const index = row * cols + col;
-        if (index >= MARKER_BITS.length) break;
 
         // Center marker in cell
         const cx = col * cellW + cellW / 2;
@@ -164,9 +163,12 @@ export const arucoGrid: TestPattern = {
         const mx = cx - markerSize / 2;
         const my = cy - markerSize / 2;
 
-        drawMarker(ctx, mx, my, markerSize, index);
+        if (index < MARKER_BITS.length) {
+          drawMarker(ctx, mx, my, markerSize, index);
+        }
 
-        // Label below marker
+        // Label below marker. Always drawn — for cells beyond MARKER_BITS.length
+        // the label is the only identifier, so the grid remains useful.
         const labelSize = markerSize * 0.12;
         ctx.font = `bold ${labelSize}px sans-serif`;
         ctx.fillStyle = '#000000';
@@ -177,3 +179,5 @@ export const arucoGrid: TestPattern = {
     }
   },
 };
+
+export const MAX_ARUCO_MARKERS = MARKER_BITS.length;

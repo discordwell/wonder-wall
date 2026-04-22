@@ -1,5 +1,10 @@
 import type { WSContext } from 'hono/ws';
 import {
+  type NovastarCommand,
+  type StatusMessage,
+  parseClientMessage,
+} from '@wonderwall/patterns';
+import {
   isConnected as novastarConnected,
   readBrightness,
   setBrightness,
@@ -10,23 +15,9 @@ import {
   readWallLayout,
   getWallConfig,
   type BrightnessInfo,
-  type WallConfig,
   TestMode,
 } from './services/novastar.js';
 import { captureSnapshot, getSnapshots, getSnapshot } from './services/config-backup.js';
-
-export interface PatternCommand {
-  type: 'setPattern';
-  id: string;
-  params: Record<string, unknown>;
-}
-
-export interface StatusMessage {
-  type: 'status';
-  outputClients: number;
-  currentPattern: string | null;
-  novastar: { connected: boolean; wall: WallConfig | null };
-}
 
 type Client = WSContext;
 
@@ -35,11 +26,36 @@ const outputs: Set<Client> = new Set();
 
 let currentPattern: { id: string; params: Record<string, unknown> } | null = null;
 
+/**
+ * Send to a single client. Returns false if the client was closed or send
+ * threw (e.g. underlying socket gone). Never throws — callers decide whether
+ * to evict the dead client from their set.
+ */
+function safeSend(ws: Client, data: string): boolean {
+  try {
+    if (ws.readyState !== 1) return false;
+    ws.send(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function broadcast(set: Set<Client>, data: string) {
+  const dead: Client[] = [];
+  for (const ws of set) {
+    if (!safeSend(ws, data)) dead.push(ws);
+  }
+  for (const ws of dead) set.delete(ws);
+}
+
 export function addController(ws: Client) {
   controllers.add(ws);
-  // Send current state
   if (currentPattern) {
-    ws.send(JSON.stringify({ type: 'pattern', ...currentPattern }));
+    if (!safeSend(ws, JSON.stringify({ type: 'pattern', ...currentPattern }))) {
+      controllers.delete(ws);
+      return;
+    }
   }
   broadcastStatus();
 }
@@ -50,9 +66,11 @@ export function removeController(ws: Client) {
 
 export function addOutput(ws: Client) {
   outputs.add(ws);
-  // Send current pattern immediately
   if (currentPattern) {
-    ws.send(JSON.stringify({ type: 'pattern', ...currentPattern }));
+    if (!safeSend(ws, JSON.stringify({ type: 'pattern', ...currentPattern }))) {
+      outputs.delete(ws);
+      return;
+    }
   }
   broadcastStatus();
 }
@@ -63,28 +81,29 @@ export function removeOutput(ws: Client) {
 }
 
 export function handleControllerMessage(ws: Client, data: string) {
-  try {
-    const msg = JSON.parse(data);
-    if (msg.type === 'setPattern') {
-      currentPattern = { id: msg.id, params: msg.params ?? {} };
-      const outMsg = JSON.stringify({ type: 'pattern', id: msg.id, params: msg.params ?? {} });
-      for (const output of outputs) output.send(outMsg);
-      for (const ctrl of controllers) ctrl.send(outMsg);
-    } else if (msg.type === 'novastar') {
-      handleNovastarCommand(ws, msg);
-    }
-  } catch {
-    // Ignore malformed messages
+  const msg = parseClientMessage(data);
+  if (!msg) return;
+  if (msg.type === 'setPattern') {
+    currentPattern = { id: msg.id, params: msg.params ?? {} };
+    const outMsg = JSON.stringify({ type: 'pattern', id: msg.id, params: msg.params ?? {} });
+    broadcast(outputs, outMsg);
+    broadcast(controllers, outMsg);
+  } else if (msg.type === 'novastar') {
+    handleNovastarCommand(ws, msg);
   }
 }
 
-async function handleNovastarCommand(ws: Client, msg: any) {
+async function handleNovastarCommand(ws: Client, msg: NovastarCommand) {
   try {
+    // result shape is action-specific (BrightnessInfo, WallConfig, snapshot,
+    // plain {error} etc.) — a single tight type is more ceremony than signal.
     let result: any;
+
+    const host = (msg.host as string | undefined) ?? '';
 
     switch (msg.action) {
       case 'connect':
-        await connectToDevice(msg.host);
+        await connectToDevice(msg.host as string);
         const info = await readDeviceInfo();
         const wall = await readWallLayout();
         result = { connected: true, ...info, wall };
@@ -105,21 +124,25 @@ async function handleNovastarCommand(ws: Client, msg: any) {
         result = await readBrightness();
         break;
 
-      case 'setBrightness':
-        // Auto-backup before change
-        await captureSnapshot(`Before brightness ${msg.channel ?? 'global'} → ${msg.value}`, true, msg.host ?? '').catch(() => {});
-        await setBrightness(msg.value, msg.channel ?? 'global');
+      case 'setBrightness': {
+        const channel = (msg.channel as 'global' | 'red' | 'green' | 'blue' | undefined) ?? 'global';
+        const value = msg.value as number;
+        await captureSnapshot(`Before brightness ${channel} → ${value}`, true, host).catch(() => {});
+        await setBrightness(value, channel);
         result = await readBrightness();
         break;
+      }
 
-      case 'setTestMode':
-        await captureSnapshot(`Before test mode → ${msg.mode}`, true, msg.host ?? '').catch(() => {});
-        await setTestMode(msg.mode as TestMode);
-        result = { mode: msg.mode };
+      case 'setTestMode': {
+        const mode = msg.mode as number;
+        await captureSnapshot(`Before test mode → ${mode}`, true, host).catch(() => {});
+        await setTestMode(mode as TestMode);
+        result = { mode };
         break;
+      }
 
       case 'saveConfig':
-        result = await captureSnapshot(msg.label ?? 'Manual save', false, msg.host ?? '');
+        result = await captureSnapshot((msg.label as string | undefined) ?? 'Manual save', false, host);
         break;
 
       case 'getConfigSnapshots':
@@ -127,9 +150,8 @@ async function handleNovastarCommand(ws: Client, msg: any) {
         break;
 
       case 'restoreConfig': {
-        const snap = getSnapshot(msg.id);
+        const snap = getSnapshot(msg.id as string);
         if (!snap) { result = { error: 'Snapshot not found' }; break; }
-        // Auto-backup current state before restoring
         await captureSnapshot(`Before restore → ${snap.label}`, true, snap.deviceAddress).catch(() => {});
         if (snap.brightness.global >= 0) await setBrightness(snap.brightness.global, 'global').catch(() => {});
         if (snap.brightness.red >= 0) await setBrightness(snap.brightness.red, 'red').catch(() => {});
@@ -144,9 +166,9 @@ async function handleNovastarCommand(ws: Client, msg: any) {
         result = { error: `Unknown action: ${msg.action}` };
     }
 
-    ws.send(JSON.stringify({ type: 'novastarResult', action: msg.action, ...result }));
+    safeSend(ws, JSON.stringify({ type: 'novastarResult', action: msg.action, ...result }));
   } catch (err) {
-    ws.send(JSON.stringify({
+    safeSend(ws, JSON.stringify({
       type: 'novastarResult',
       action: msg.action,
       error: (err as Error).message,
@@ -161,10 +183,7 @@ function broadcastStatus() {
     currentPattern: currentPattern?.id ?? null,
     novastar: { connected: novastarConnected(), wall: getWallConfig() },
   };
-  const data = JSON.stringify(msg);
-  for (const ctrl of controllers) {
-    ctrl.send(data);
-  }
+  broadcast(controllers, JSON.stringify(msg));
 }
 
 export function getStatus() {

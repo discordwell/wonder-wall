@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 const PRESET_COLORS = [
   { label: 'Red', value: '#ff0000' },
@@ -26,8 +27,7 @@ export const solid: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const color = (params.color as string) ?? '#ff0000';
-    ctx.fillStyle = color;
+    ctx.fillStyle = getParam(params, 'color', '#ff0000');
     ctx.fillRect(0, 0, w, h);
   },
 };

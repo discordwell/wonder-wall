@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const sequentialFlash: TestPattern = {
   id: 'sequential-flash',
@@ -41,47 +42,15 @@ export const sequentialFlash: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    // Static render shows all panels dimmed with #0 highlighted
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, w, h);
-
-    const cols = (params.columns as number) ?? 4;
-    const rows = (params.rows as number) ?? 3;
-    const cellW = w / cols;
-    const cellH = h / rows;
-
-    // Draw dim grid
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const x = Math.round(col * cellW);
-        const y = Math.round(row * cellH);
-        const cw = Math.round((col + 1) * cellW) - x;
-        const ch = Math.round((row + 1) * cellH) - y;
-
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, cw, ch);
-      }
-    }
-
-    // Highlight first cell
-    ctx.fillStyle = (params.flashColor as string) ?? '#ffffff';
-    ctx.fillRect(0, 0, Math.round(cellW), Math.round(cellH));
-
-    // Label
-    const fontSize = Math.min(cellW, cellH) * 0.3;
-    ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.fillStyle = '#000000';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('#0', Math.round(cellW) / 2, Math.round(cellH) / 2);
+    // Static render == animate at t=0, keeping the two paths in lockstep.
+    sequentialFlash.animate!(ctx, w, h, params, 0);
   },
 
   animate(ctx, w, h, params, time) {
-    const cols = (params.columns as number) ?? 4;
-    const rows = (params.rows as number) ?? 3;
-    const speed = (params.speed as number) ?? 1000;
-    const flashColor = (params.flashColor as string) ?? '#ffffff';
+    const cols = getParam(params, 'columns', 4);
+    const rows = getParam(params, 'rows', 3);
+    const speed = getParam(params, 'speed', 1000);
+    const flashColor = getParam(params, 'flashColor', '#ffffff');
     const totalCells = cols * rows;
 
     const activeIndex = Math.floor(time / speed) % totalCells;

@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const motionTest: TestPattern = {
   id: 'motion-test',
@@ -19,9 +20,9 @@ export const motionTest: TestPattern = {
   render(ctx, w, h, params) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
-    const barW = (params.barWidth as number) ?? 40;
-    const color = (params.color as string) ?? '#ffffff';
-    const isH = (params.direction as string) === 'horizontal';
+    const barW = getParam(params, 'barWidth', 40);
+    const color = getParam(params, 'color', '#ffffff');
+    const isH = getParam<string>(params, 'direction', 'horizontal') === 'horizontal';
     ctx.fillStyle = color;
     if (isH) {
       ctx.fillRect(0, 0, barW, h);
@@ -30,10 +31,10 @@ export const motionTest: TestPattern = {
     }
   },
   animate(ctx, w, h, params, time) {
-    const barW = (params.barWidth as number) ?? 40;
-    const speed = (params.speed as number) ?? 200;
-    const color = (params.color as string) ?? '#ffffff';
-    const isH = (params.direction as string) !== 'vertical';
+    const barW = getParam(params, 'barWidth', 40);
+    const speed = getParam(params, 'speed', 200);
+    const color = getParam(params, 'color', '#ffffff');
+    const isH = getParam<string>(params, 'direction', 'horizontal') === 'horizontal';
 
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);

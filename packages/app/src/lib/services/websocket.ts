@@ -1,10 +1,17 @@
+import {
+  parseServerMessage,
+  type PatternParams,
+  type StatusMessage,
+  type NovastarResultMessage,
+} from '@wonderwall/patterns';
+
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 
 export interface WsCallbacks {
   onStateChange: (state: ConnectionState) => void;
-  onPattern: (id: string, params: Record<string, unknown>) => void;
-  onStatus: (outputClients: number, extra?: any) => void;
-  onNovastarResult?: (msg: any) => void;
+  onPattern: (id: string, params: PatternParams) => void;
+  onStatus: (status: StatusMessage) => void;
+  onNovastarResult?: (msg: NovastarResultMessage) => void;
 }
 
 let ws: WebSocket | null = null;
@@ -23,17 +30,14 @@ export function connect(url: string, cbs: WsCallbacks) {
   };
 
   ws.onmessage = (evt) => {
-    try {
-      const msg = JSON.parse(evt.data);
-      if (msg.type === 'pattern') {
-        cbs.onPattern(msg.id, msg.params ?? {});
-      } else if (msg.type === 'status') {
-        cbs.onStatus(msg.outputClients, msg);
-      } else if (msg.type === 'novastarResult') {
-        cbs.onNovastarResult?.(msg);
-      }
-    } catch {
-      // Ignore malformed messages
+    const msg = parseServerMessage(evt.data);
+    if (!msg) return;
+    if (msg.type === 'pattern') {
+      cbs.onPattern(msg.id, msg.params ?? {});
+    } else if (msg.type === 'status') {
+      cbs.onStatus(msg);
+    } else if (msg.type === 'novastarResult') {
+      cbs.onNovastarResult?.(msg);
     }
   };
 

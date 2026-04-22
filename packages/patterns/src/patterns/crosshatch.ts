@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const crosshatch: TestPattern = {
   id: 'crosshatch',
@@ -38,10 +39,10 @@ export const crosshatch: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const spacing = (params.spacing as number) ?? 64;
-    const lineColor = (params.lineColor as string) ?? '#ffffff';
-    const bgColor = (params.bgColor as string) ?? '#000000';
-    const lineWidth = (params.lineWidth as number) ?? 1;
+    const spacing = getParam(params, 'spacing', 64);
+    const lineColor = getParam(params, 'lineColor', '#ffffff');
+    const bgColor = getParam(params, 'bgColor', '#000000');
+    const lineWidth = getParam(params, 'lineWidth', 1);
 
     // Background
     ctx.fillStyle = bgColor;

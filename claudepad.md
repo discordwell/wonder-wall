@@ -2,6 +2,14 @@
 
 ## Session Summaries
 
+### 2026-04-21T23:50Z — Quality Pass B (cleanup sweep)
+Built on Pass A with four coordinated cleanup changes:
+- **`getParam` helper** in `@wonderwall/patterns/utils.ts` — typed read of values from a params bag, with a typeof guard that rejects type-mismatched values (e.g. stringified numbers from malformed WS messages) and falls back to the default. Migrated all 16 patterns, replaced ~50 copies of `(params.x as T) ?? default`. Call sites that compare literals (smpte-bars intensity, motion-test direction, brightness-steps direction) use explicit `getParam<string>` to avoid TS over-narrowing.
+- **sequential-flash dedup** — static `render` now delegates to `animate(..., 0)`, eliminating a hardcoded `#0` literal and keeping the two code paths in lockstep.
+- **WS protocol types** in new `@wonderwall/patterns/protocol.ts` — `ClientMessage` / `ServerMessage` discriminated unions with `parseClientMessage` / `parseServerMessage` runtime validators. Migrated server `ws.ts` and app `websocket.ts` / `novastar-client.ts` / `connection.svelte.ts`. Top-level `type` is strictly discriminated; novastar action-specific fields stay loose since shape varies per action.
+- **WS send safety** — `safeSend` + `broadcast` helpers evict dead clients from the controllers/outputs set instead of silently leaking them. Covers readyState≠OPEN and thrown-send cases.
+- Tests: 48 → 58 (4 protocol parser + 3 getParam + 3 ws-safe-send). App build green. Server `tsc` still broken pre-existingly (no `@types/node`) — my changes don't add new errors vs baseline. Remaining Pass B backlog: nothing urgent; server auth/CORS (item 11 from original audit) is scoped as its own conversation when deployment plans firm up.
+
 ### 2026-04-21T23:30Z — Quality Pass A (bug fixes)
 Full-codebase analysis pass on a long-idle project. Three subagents audited patterns/app/server packages; findings triaged against real code (two flagged items — motion-test inversion and gradient steps=1 — turned out to be false positives from the analysis, so nothing changed in those files). Three real bugs fixed with regression tests:
 - **Output page drift**: server `/output` inline renderers were missing `aruco-grid` entirely and had dropped `numbered-grid`'s `col,row` coordinate label. Added both; added a server-side parity test that enumerates every registry ID and asserts an inline renderer exists in `output/index.html` — catches this drift class going forward.

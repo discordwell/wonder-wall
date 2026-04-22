@@ -1,9 +1,9 @@
+import type { NovastarResultMessage } from '@wonderwall/patterns';
 import {
   connect as wsConnect,
   disconnect as wsDisconnect,
   sendPattern,
   type ConnectionState,
-  type WsCallbacks,
 } from '../services/websocket.ts';
 import {
   createDefaultNovastarState,
@@ -31,15 +31,13 @@ class ConnectionStore {
       onPattern: () => {
         // Pattern echo from server — we already have it locally
       },
-      onStatus: (outputs, extra) => {
-        this.outputClients = outputs;
-        if (extra?.novastar) {
-          this.novastar = {
-            ...this.novastar,
-            connected: extra.novastar.connected,
-            wall: extra.novastar.wall ?? this.novastar.wall,
-          };
-        }
+      onStatus: (status) => {
+        this.outputClients = status.outputClients;
+        this.novastar = {
+          ...this.novastar,
+          connected: status.novastar.connected,
+          wall: status.novastar.wall ?? this.novastar.wall,
+        };
       },
       onNovastarResult: (msg) => {
         this.handleNovastarMessage(msg);
@@ -58,7 +56,7 @@ class ConnectionStore {
     sendPattern(id, params);
   }
 
-  handleNovastarMessage(msg: any) {
+  handleNovastarMessage(msg: NovastarResultMessage) {
     this.novastar = handleNovastarResult(msg, this.novastar);
   }
 

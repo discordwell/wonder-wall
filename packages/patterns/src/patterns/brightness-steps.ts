@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const brightnessSteps: TestPattern = {
   id: 'brightness-steps',
@@ -12,9 +13,9 @@ export const brightnessSteps: TestPattern = {
     { key: 'showLabels', label: 'Show Labels', type: 'boolean', default: true },
   ],
   render(ctx, w, h, params) {
-    const steps = (params.steps as number) ?? 21;
-    const direction = (params.direction as string) ?? 'horizontal';
-    const showLabels = (params.showLabels as boolean) ?? true;
+    const steps = getParam(params, 'steps', 21);
+    const direction = getParam<string>(params, 'direction', 'horizontal');
+    const showLabels = getParam(params, 'showLabels', true);
     const isH = direction === 'horizontal';
 
     const size = isH ? w : h;

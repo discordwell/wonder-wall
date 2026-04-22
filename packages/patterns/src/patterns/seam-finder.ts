@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const seamFinder: TestPattern = {
   id: 'seam-finder',
@@ -13,11 +14,11 @@ export const seamFinder: TestPattern = {
     { key: 'color2', label: 'Color 2', type: 'color', default: '#00ff00' },
   ],
   render(ctx, w, h, params) {
-    const cols = (params.columns as number) ?? 4;
-    const rows = (params.rows as number) ?? 3;
-    const bandPct = (params.bandPct as number) ?? 8;
-    const c1 = (params.color1 as string) ?? '#ff0000';
-    const c2 = (params.color2 as string) ?? '#00ff00';
+    const cols = getParam(params, 'columns', 4);
+    const rows = getParam(params, 'rows', 3);
+    const bandPct = getParam(params, 'bandPct', 8);
+    const c1 = getParam(params, 'color1', '#ff0000');
+    const c2 = getParam(params, 'color2', '#00ff00');
 
     // Black background
     ctx.fillStyle = '#000000';

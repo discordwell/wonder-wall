@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const numberedGrid: TestPattern = {
   id: 'numbered-grid',
@@ -32,9 +33,9 @@ export const numberedGrid: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const cols = (params.columns as number) ?? 4;
-    const rows = (params.rows as number) ?? 3;
-    const showBorder = (params.showBorder as boolean) ?? true;
+    const cols = getParam(params, 'columns', 4);
+    const rows = getParam(params, 'rows', 3);
+    const showBorder = getParam(params, 'showBorder', true);
 
     const cellW = w / cols;
     const cellH = h / rows;

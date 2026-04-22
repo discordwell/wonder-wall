@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 // SMPTE color bar values (75% and 100% intensity)
 const BARS_75 = [
@@ -51,7 +52,7 @@ export const smpteBars: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const intensity = (params.intensity as string) ?? '75';
+    const intensity = getParam<string>(params, 'intensity', '75');
     const bars = intensity === '100' ? BARS_100 : BARS_75;
 
     const topHeight = h * 0.67;

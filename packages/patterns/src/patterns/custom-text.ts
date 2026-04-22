@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const customText: TestPattern = {
   id: 'custom-text',
@@ -22,11 +23,11 @@ export const customText: TestPattern = {
     { key: 'showInfo', label: 'Show Resolution', type: 'boolean', default: true },
   ],
   render(ctx, w, h, params) {
-    const text = (params.text as string) ?? 'WonderWall';
-    const fontSize = (params.fontSize as number) ?? 120;
-    const color = (params.color as string) ?? '#ffffff';
-    const bg = (params.bgColor as string) ?? '#000000';
-    const showInfo = (params.showInfo as boolean) ?? true;
+    const text = getParam(params, 'text', 'WonderWall');
+    const fontSize = getParam(params, 'fontSize', 120);
+    const color = getParam(params, 'color', '#ffffff');
+    const bg = getParam(params, 'bgColor', '#000000');
+    const showInfo = getParam(params, 'showInfo', true);
 
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);

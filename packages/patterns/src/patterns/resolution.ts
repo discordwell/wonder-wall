@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const resolutionCheck: TestPattern = {
   id: 'resolution-check',
@@ -11,9 +12,9 @@ export const resolutionCheck: TestPattern = {
     { key: 'color2', label: 'Color 2', type: 'color', default: '#000000' },
   ],
   render(ctx, w, h, params) {
-    const size = (params.blockSize as number) ?? 1;
-    const c1 = (params.color1 as string) ?? '#ffffff';
-    const c2 = (params.color2 as string) ?? '#000000';
+    const size = getParam(params, 'blockSize', 1);
+    const c1 = getParam(params, 'color1', '#ffffff');
+    const c2 = getParam(params, 'color2', '#000000');
 
     // Fill background with color2
     ctx.fillStyle = c2;

@@ -1,6 +1,67 @@
 import { describe, it, expect } from 'vitest';
-import { getPattern, getAllPatterns, getDefaultParams, renderPattern } from '../index.js';
+import {
+  getPattern,
+  getAllPatterns,
+  getDefaultParams,
+  renderPattern,
+  getParam,
+  parseClientMessage,
+  parseServerMessage,
+} from '../index.js';
 import { createTestCanvas, getPixel, pixelMatches } from './helpers.js';
+
+describe('protocol parsers', () => {
+  it('accepts valid client message types', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'setPattern', id: 'solid', params: {} }))?.type)
+      .toBe('setPattern');
+    expect(parseClientMessage(JSON.stringify({ type: 'novastar', action: 'connect', host: '1.2.3.4' }))?.type)
+      .toBe('novastar');
+  });
+
+  it('rejects unknown client message types', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'hack', payload: 'x' }))).toBeNull();
+    expect(parseClientMessage('{')).toBeNull();
+    expect(parseClientMessage(JSON.stringify('just a string'))).toBeNull();
+  });
+
+  it('accepts valid server message types', () => {
+    expect(parseServerMessage(JSON.stringify({ type: 'pattern', id: 'solid', params: {} }))?.type)
+      .toBe('pattern');
+    expect(parseServerMessage(JSON.stringify({
+      type: 'status', outputClients: 1, currentPattern: null,
+      novastar: { connected: false, wall: null },
+    }))?.type).toBe('status');
+    expect(parseServerMessage(JSON.stringify({
+      type: 'novastarResult', action: 'getBrightness', global: 200,
+    }))?.type).toBe('novastarResult');
+  });
+
+  it('rejects unknown server message types', () => {
+    expect(parseServerMessage(JSON.stringify({ type: 'unknown' }))).toBeNull();
+    expect(parseServerMessage('not json')).toBeNull();
+  });
+});
+
+describe('getParam', () => {
+  it('returns the value when types match', () => {
+    expect(getParam({ a: 4 }, 'a', 0)).toBe(4);
+    expect(getParam({ a: 'x' }, 'a', 'y')).toBe('x');
+    expect(getParam({ a: false }, 'a', true)).toBe(false);
+  });
+
+  it('falls back when key is missing', () => {
+    expect(getParam({}, 'a', 42)).toBe(42);
+    expect(getParam({}, 'a', 'def')).toBe('def');
+  });
+
+  it('falls back when type mismatches (guards against malformed WS params)', () => {
+    // A stringified number relayed by a misbehaving client must not reach
+    // canvas math as NaN — we want the default instead.
+    expect(getParam({ cols: '4' }, 'cols', 10)).toBe(10);
+    expect(getParam({ active: 'true' }, 'active', false)).toBe(false);
+    expect(getParam({ label: 99 }, 'label', 'fallback')).toBe('fallback');
+  });
+});
 
 describe('registry', () => {
   it('has all 16 patterns registered', () => {

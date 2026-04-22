@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 type ChannelValue = 'grayscale' | 'red' | 'green' | 'blue';
 type DirectionValue = 'horizontal' | 'vertical';
@@ -42,9 +43,9 @@ export const gradient: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const channel = (params.channel as ChannelValue) ?? 'grayscale';
-    const direction = (params.direction as DirectionValue) ?? 'horizontal';
-    const steps = (params.steps as number) ?? 0;
+    const channel = getParam<ChannelValue>(params, 'channel', 'grayscale');
+    const direction = getParam<DirectionValue>(params, 'direction', 'horizontal');
+    const steps = getParam(params, 'steps', 0);
 
     if (steps > 0) {
       renderStepped(ctx, w, h, channel, direction, steps);

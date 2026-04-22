@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const alignmentCrosses: TestPattern = {
   id: 'alignment-crosses',
@@ -11,9 +12,9 @@ export const alignmentCrosses: TestPattern = {
     { key: 'armLength', label: 'Arm Length', type: 'number', default: 40, min: 10, max: 200, step: 5 },
   ],
   render(ctx, w, h, params) {
-    const color = (params.color as string) ?? '#ffffff';
-    const bg = (params.bgColor as string) ?? '#000000';
-    const arm = (params.armLength as number) ?? 40;
+    const color = getParam(params, 'color', '#ffffff');
+    const bg = getParam(params, 'bgColor', '#000000');
+    const arm = getParam(params, 'armLength', 40);
 
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);

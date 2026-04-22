@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const uniformityWhite: TestPattern = {
   id: 'uniformity-white',
@@ -18,7 +19,7 @@ export const uniformityWhite: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const pct = parseInt((params.brightness as string) ?? '100', 10);
+    const pct = parseInt(getParam(params, 'brightness', '100'), 10);
     const v = Math.round((pct / 100) * 255);
     ctx.fillStyle = `rgb(${v},${v},${v})`;
     ctx.fillRect(0, 0, w, h);

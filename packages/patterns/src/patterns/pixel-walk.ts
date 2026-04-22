@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 export const pixelWalk: TestPattern = {
   id: 'pixel-walk',
@@ -13,14 +14,14 @@ export const pixelWalk: TestPattern = {
   render(ctx, w, h, params) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = (params.color as string) ?? '#ffffff';
-    const size = (params.dotSize as number) ?? 4;
+    ctx.fillStyle = getParam(params, 'color', '#ffffff');
+    const size = getParam(params, 'dotSize', 4);
     ctx.fillRect(0, 0, size, size);
   },
   animate(ctx, w, h, params, time) {
-    const size = (params.dotSize as number) ?? 4;
-    const speed = (params.speed as number) ?? 50;
-    const color = (params.color as string) ?? '#ffffff';
+    const size = getParam(params, 'dotSize', 4);
+    const speed = getParam(params, 'speed', 50);
+    const color = getParam(params, 'color', '#ffffff');
 
     const cols = Math.ceil(w / size);
     const rows = Math.ceil(h / size);

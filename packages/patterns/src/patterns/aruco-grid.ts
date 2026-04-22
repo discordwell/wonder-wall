@@ -1,4 +1,5 @@
 import type { TestPattern } from '../types.js';
+import { getParam } from '../utils.js';
 
 /**
  * ArUco marker data for ARUCO_MIP_36h12 dictionary.
@@ -138,9 +139,9 @@ export const arucoGrid: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const cols = (params.columns as number) ?? 4;
-    const rows = (params.rows as number) ?? 3;
-    const paddingPct = (params.padding as number) ?? 15;
+    const cols = getParam(params, 'columns', 4);
+    const rows = getParam(params, 'rows', 3);
+    const paddingPct = getParam(params, 'padding', 15);
 
     // White background for maximum contrast
     ctx.fillStyle = '#ffffff';

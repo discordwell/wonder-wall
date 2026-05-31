@@ -68,4 +68,14 @@ describe('presetStore', () => {
     const store = await freshStore();
     expect(store.presets).toEqual([]);
   });
+
+  it('save() survives a throwing localStorage (quota / private mode)', async () => {
+    const store = await freshStore();
+    const spy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    expect(() => store.save('A', 'solid', { color: '#fff' })).not.toThrow();
+    expect(store.presets).toHaveLength(1); // in-memory list still updated
+    spy.mockRestore();
+  });
 });

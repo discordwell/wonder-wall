@@ -1,5 +1,6 @@
 import { connect as tcpConnect, type Socket } from 'node:net';
 import { Connection, Session } from '@novastar/codec';
+import { mapWithConcurrency } from './concurrency.js';
 
 // Import the specific native API methods we need
 import '@novastar/native/api/ReadControllerModelId';
@@ -301,34 +302,27 @@ export async function setTestMode(
 }
 
 /**
- * Scan for Novastar devices on the local network.
- * Tries common addresses by attempting TCP connections on port 5200.
+ * Scan for Novastar devices on the local network by attempting TCP connections
+ * on port 5200. Probes run through a bounded worker pool so at most
+ * SCAN_CONCURRENCY sockets are open at once — a full 254-host SYN burst can
+ * trip intrusion detection on a production AV network.
  */
+const SCAN_CONCURRENCY = 32;
+
+function probeHost(host: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const sock = tcpConnect({ host, port: NOVASTAR_PORT, timeout: 1000 }, () => {
+      sock.destroy();
+      resolve(true);
+    });
+    sock.on('error', () => { sock.destroy(); resolve(false); });
+    sock.on('timeout', () => { sock.destroy(); resolve(false); });
+  });
+}
+
 export async function discoverDevices(subnet?: string): Promise<string[]> {
   const base = subnet ?? '192.168.1';
-  const found: string[] = [];
-  const promises: Promise<void>[] = [];
-
-  // Scan common addresses (1-254) with short timeout
-  for (let i = 1; i <= 254; i++) {
-    const host = `${base}.${i}`;
-    promises.push(
-      new Promise<void>((resolve) => {
-        const sock = tcpConnect({ host, port: NOVASTAR_PORT, timeout: 1000 }, () => {
-          found.push(host);
-          sock.destroy();
-          resolve();
-        });
-        sock.on('error', () => { sock.destroy(); resolve(); });
-        sock.on('timeout', () => { sock.destroy(); resolve(); });
-      }),
-    );
-  }
-
-  // Run in batches of 50 to avoid overwhelming the network
-  for (let i = 0; i < promises.length; i += 50) {
-    await Promise.all(promises.slice(i, i + 50));
-  }
-
-  return found;
+  const hosts = Array.from({ length: 254 }, (_, i) => `${base}.${i + 1}`);
+  const reachable = await mapWithConcurrency(hosts, SCAN_CONCURRENCY, probeHost);
+  return hosts.filter((_, i) => reachable[i]);
 }

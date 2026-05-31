@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { sendNovastarCommand, type NovastarState } from '../services/novastar-client.ts';
 
   interface Props {
@@ -9,6 +10,7 @@
 
   let connectHost = $state('');
   let connecting = $state(false);
+  let scanning = $state(false);
   let error = $state<string | null>(null);
   let saveLabel = $state('');
   let showingSave = $state(false);
@@ -32,6 +34,19 @@
     // Wait for result via WebSocket callback
     setTimeout(() => { connecting = false; }, 5000);
   }
+
+  function scanNetwork() {
+    scanning = true;
+    sendNovastarCommand('discover', {});
+  }
+
+  // Clear the scanning flag once a result arrives (novaState is replaced when
+  // the discover result is reduced into the connection store). untrack() keeps
+  // `scanning` out of the dependency set so setting it doesn't re-fire this.
+  $effect(() => {
+    void novaState.discovered;
+    untrack(() => { if (scanning) scanning = false; });
+  });
 
   function handleDisconnect() {
     sendNovastarCommand('disconnect', {});
@@ -84,10 +99,20 @@
         disabled={connecting}
         onkeydown={(e) => e.key === 'Enter' && handleConnect()}
       />
+      <button class="btn-small" onclick={scanNetwork} disabled={scanning || connecting}>
+        {scanning ? 'Scanning…' : 'Scan'}
+      </button>
       <button class="btn" onclick={handleConnect} disabled={connecting || !connectHost.trim()}>
         {connecting ? '...' : 'Connect'}
       </button>
     </div>
+    {#if novaState.discovered.length > 0}
+      <div class="discovered">
+        {#each novaState.discovered as ip}
+          <button class="discovered-chip" onclick={() => { connectHost = ip; }}>{ip}</button>
+        {/each}
+      </div>
+    {/if}
     {#if error}
       <p class="error">{error}</p>
     {/if}
@@ -110,29 +135,29 @@
     <div class="brightness-section">
       <h4>Brightness</h4>
       <div class="slider-row">
-        <label>Global</label>
-        <input type="range" min="0" max="255"
+        <label for="nova-bright-global">Global</label>
+        <input id="nova-bright-global" type="range" min="0" max="255"
           value={novaState.brightness.global}
           oninput={(e) => handleBrightnessChange('global', Number(e.currentTarget.value))} />
         <span class="val">{novaState.brightness.global}</span>
       </div>
       <div class="slider-row">
-        <label>R</label>
-        <input type="range" min="0" max="255" class="red"
+        <label for="nova-bright-red">R</label>
+        <input id="nova-bright-red" type="range" min="0" max="255" class="red"
           value={novaState.brightness.red}
           oninput={(e) => handleBrightnessChange('red', Number(e.currentTarget.value))} />
         <span class="val">{novaState.brightness.red}</span>
       </div>
       <div class="slider-row">
-        <label>G</label>
-        <input type="range" min="0" max="255" class="green"
+        <label for="nova-bright-green">G</label>
+        <input id="nova-bright-green" type="range" min="0" max="255" class="green"
           value={novaState.brightness.green}
           oninput={(e) => handleBrightnessChange('green', Number(e.currentTarget.value))} />
         <span class="val">{novaState.brightness.green}</span>
       </div>
       <div class="slider-row">
-        <label>B</label>
-        <input type="range" min="0" max="255" class="blue"
+        <label for="nova-bright-blue">B</label>
+        <input id="nova-bright-blue" type="range" min="0" max="255" class="blue"
           value={novaState.brightness.blue}
           oninput={(e) => handleBrightnessChange('blue', Number(e.currentTarget.value))} />
         <span class="val">{novaState.brightness.blue}</span>
@@ -263,6 +288,24 @@
   .btn:disabled { opacity: 0.4; cursor: default; }
 
   .error { color: #f87171; font-size: 12px; margin-top: 6px; }
+
+  .discovered {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .discovered-chip {
+    background: rgba(255, 165, 0, 0.12);
+    border: 1px solid rgba(255, 165, 0, 0.3);
+    color: #ffa500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
 
   .connected-info {
     display: flex;

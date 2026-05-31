@@ -48,4 +48,15 @@ describe('wallStore', () => {
     expect(store.columns).toBe(4);
     expect(store.rows).toBe(3);
   });
+
+  it('set() survives a throwing localStorage (quota / private mode)', async () => {
+    const store = await freshStore();
+    const spy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    expect(() => store.set(8, 5)).not.toThrow();
+    expect(store.columns).toBe(8); // in-memory config still updated
+    expect(store.rows).toBe(5);
+    spy.mockRestore();
+  });
 });

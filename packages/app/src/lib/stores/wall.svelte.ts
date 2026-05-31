@@ -21,7 +21,11 @@ class WallStore {
   set(columns: number, rows: number, auto = false) {
     this.config = { columns, rows };
     this.autoDetected = auto;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.config));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.config));
+    } catch {
+      // Private mode / quota exceeded — in-memory config still updates.
+    }
   }
 
   get columns() { return this.config.columns; }

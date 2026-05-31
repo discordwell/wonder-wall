@@ -1,6 +1,7 @@
 <script lang="ts">
   import { renderPattern, createAnimationLoop, type TestPattern } from '@wonderwall/patterns';
   import { requestFullscreen, lockLandscape } from '../services/fullscreen.ts';
+  import { sizeCanvasToDevicePixels } from '../services/canvas.ts';
 
   interface Props {
     pattern: TestPattern | null;
@@ -19,33 +20,20 @@
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Match canvas to display size
+    // Size the backing store to physical device pixels and render 1:1 in that
+    // space (no ctx.scale) so pixel-exact patterns map to real pixels.
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const { width, height } = sizeCanvasToDevicePixels(canvas, rect.width, rect.height, dpr);
 
     // Stop any running animation
     stopAnimation?.();
     stopAnimation = null;
 
     if (pattern.animate) {
-      stopAnimation = createAnimationLoop({
-        pattern,
-        ctx,
-        width: rect.width,
-        height: rect.height,
-        params,
-      });
+      stopAnimation = createAnimationLoop({ pattern, ctx, width, height, params });
     } else {
-      renderPattern({
-        pattern,
-        ctx,
-        width: rect.width,
-        height: rect.height,
-        params,
-      });
+      renderPattern({ pattern, ctx, width, height, params });
     }
   }
 
@@ -63,7 +51,10 @@
 
   $effect(() => {
     if (container) {
-      requestFullscreen(container);
+      // Fullscreen needs a user gesture and is unsupported on iPhone Safari;
+      // swallow the rejection so it doesn't surface as an unhandled rejection.
+      // The canvas is position:fixed/inset:0, so it fills the viewport anyway.
+      requestFullscreen(container).catch(() => {});
       lockLandscape();
     }
 

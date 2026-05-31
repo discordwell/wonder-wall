@@ -23,6 +23,7 @@ export interface NovastarState {
   };
   wall: WallConfig | null;
   snapshots: ConfigSnapshot[];
+  discovered: string[];
   error: string | null;
 }
 
@@ -33,6 +34,7 @@ export function createDefaultNovastarState(): NovastarState {
     brightness: { global: 255, red: 255, green: 255, blue: 255 },
     wall: null,
     snapshots: [],
+    discovered: [],
     error: null,
   };
 }
@@ -84,6 +86,13 @@ export function handleNovastarResult(msg: NovastarResultMessage, state: Novastar
           cabinetWidth: msg.cabinetWidth as number,
           cabinetHeight: msg.cabinetHeight as number,
         } : state.wall,
+        error: null,
+      };
+
+    case 'discover':
+      return {
+        ...state,
+        discovered: (msg.devices as string[] | undefined) ?? [],
         error: null,
       };
 

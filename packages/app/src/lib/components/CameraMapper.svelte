@@ -93,6 +93,12 @@
   const coverage = $derived(
     markers.length > 0 ? detectionCoverage(markers, columns, rows) : null,
   );
+
+  // Panels whose detected position/rotation disagrees with their marker id —
+  // i.e. physically wired out of order or flipped.
+  const issues = $derived(
+    panelMap ? panelMap.panels.filter((p) => p.misplaced || p.rotated) : [],
+  );
 </script>
 
 <div class="mapper">
@@ -167,6 +173,23 @@
 
           {#if coverage.missing.length > 0}
             <p class="missing">Missing: {coverage.missing.map(id => `#${id}`).join(', ')}</p>
+          {/if}
+
+          {#if issues.length > 0}
+            <div class="issues">
+              <p class="issues-title">{issues.length} panel{issues.length === 1 ? '' : 's'} out of place:</p>
+              <ul>
+                {#each issues as p}
+                  <li>
+                    <span class="issue-id">#{p.markerId}</span>
+                    {#if p.misplaced}at col {p.observedCol + 1}, row {p.observedRow + 1} — expected col {p.gridCol + 1}, row {p.gridRow + 1}{/if}
+                    {#if p.rotated}{p.misplaced ? ' · ' : ''}rotated ~{Math.round(p.rotation)}°{/if}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {:else if coverage.found > 0}
+            <p class="in-order">Detected panels are in the correct order ✓</p>
           {/if}
         {/if}
 
@@ -342,6 +365,42 @@
   .missing {
     font-size: 12px;
     color: #fbbf24;
+    margin-bottom: 12px;
+  }
+
+  .issues {
+    margin-bottom: 12px;
+  }
+
+  .issues-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f87171;
+    margin-bottom: 4px;
+  }
+
+  .issues ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .issues li {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 2px 0;
+  }
+
+  .issue-id {
+    font-weight: 700;
+    color: #f87171;
+  }
+
+  .in-order {
+    font-size: 13px;
+    color: #4ade80;
     margin-bottom: 12px;
   }
 

@@ -2,6 +2,17 @@
 
 ## Session Summaries
 
+### 2026-05-31T01:00Z — Quality Pass C (review-driven, 11 fixes)
+Fresh full review surfaced findings across correctness, security, and the two "smart" features. User chose: always-require-PIN, real ArUco spatial verification, keep+reframe diagnostics. Implemented all 11 with a test each (91 → 122 tests, build clean, server tsc clean):
+- **Server PIN auth** (`services/auth.ts`): `WONDERWALL_PIN` env or random 6-digit, printed at startup. `/ws/control` + `/ws/output` gated via `?pin=`; bad PIN → close 1008. PIN injected into served `/output` HTML (HDMI box auto-pairs). Phone enters PIN in `ModeSelector`. Per-connection auth capture in the upgrade factory + defense-in-depth `onMessage`/`onClose` guards.
+- **Deduped Novastar control**: deleted REST `routes/novastar.ts` (app only ever used WS). WS is the single control path; `discover` exposed via a new WS action + a Scan button in `NovastarPanel`.
+- **discoverDevices throttle**: new `services/concurrency.ts` `mapWithConcurrency` (bounded worker pool, 32) replaces the eager 254-socket burst.
+- **Device-pixel rendering**: `PatternCanvas` + `output/index.html` size canvas to `cssSize×dpr` and draw 1:1 (no `ctx.scale`), via `services/canvas.ts`. Wet-tested in-browser on dpr=2: 1px checkerboard alternates per physical pixel (was 2px blocks before).
+- **ArUco spatial verification** (`services/aruco.ts`): `observedGridPositions` pitch-quantizes detected centers into a grid; `buildPanelMap` flags `misplaced`/`rotated` panels vs id-derived expected position. Surfaced in `CameraMapper`. Now actually catches out-of-order wiring, not just presence.
+- **Diagnostics**: fixed `avgBrightness` divisor (was /1000 regardless of sample count); camera teardown + Cancel button in `DiagnosticsRunner`; reframed "Wall Health Score" → "Relative Uniformity" with an honest caveat.
+- **WS reconnect**: exponential backoff (1s→30s cap), no reconnect after explicit disconnect or 1008, `pagehide` cleanup. **Multi-controller sync**: `onPattern → patternStore.applyRemote`. **localStorage** writes guarded (presets/wall). **Fullscreen** rejection caught; **NovastarPanel a11y** label `for`/`id` (build warnings gone). **Parity test** hardened (DPR + ArUco overflow drift guards); output-page ArUco overflow aligned to package.
+- Code review (high effort): ready-to-merge, no critical/important. Known minor edges: no timeout on `scanning` flag if server fully hangs; clustering leniency on a partial capture (documented assumption).
+
 ### 2026-04-21T23:50Z — Quality Pass B (cleanup sweep)
 Built on Pass A with four coordinated cleanup changes:
 - **`getParam` helper** in `@wonderwall/patterns/utils.ts` — typed read of values from a params bag, with a typeof guard that rejects type-mismatched values (e.g. stringified numbers from malformed WS messages) and falls back to the default. Migrated all 16 patterns, replaced ~50 copies of `(params.x as T) ?? default`. Call sites that compare literals (smpte-bars intensity, motion-test direction, brightness-steps direction) use explicit `getParam<string>` to avoid TS over-narrowing.
@@ -78,3 +89,5 @@ Built WonderWall Phase 1 from scratch: a PWA test pattern generator for AV profe
 - **Phone HDMI output**: Web apps can't programmatically control external displays from phones. iOS/Android just mirror. But getUserMedia (rear camera) works independently while screen outputs HDMI — this enables camera-assisted panel mapping in phone-direct mode.
 - **ArUco markers**: js-aruco2 is the right library for Phase 2 panel identification (~80KB, zero deps, handles 12-48 markers).
 - **Svelte 5 gotcha**: `$state` rune only works in `.svelte` and `.svelte.ts` files, not plain `.ts`. Store files must be `*.svelte.ts`.
+- **PIN auth is a breaking deploy change** (Pass C, 2026-05-31): the server now requires a PIN on every WS connection. A running output box / paired phone must re-pair with the new PIN after a server restart unless `WONDERWALL_PIN` is set to a fixed value on the host. Always set `WONDERWALL_PIN` in the deploy environment so restarts don't silently drop the wall.
+- **Render at device pixels, never `ctx.scale(dpr)`** (Pass C): pixel-exact patterns (resolution-check, crosshatch) must render 1:1 in device pixels or they misrepresent on HiDPI/Retina outputs. The `sizeCanvasToDevicePixels` helper (app) and `sizeCanvas()` (output page) own this; don't reintroduce a scale transform.

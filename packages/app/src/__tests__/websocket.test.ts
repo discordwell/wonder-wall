@@ -14,7 +14,7 @@ class MockWebSocket {
   sent: string[] = [];
   onopen: (() => void) | null = null;
   onmessage: ((evt: { data: string }) => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((evt?: { code?: number }) => void) | null = null;
   onerror: (() => void) | null = null;
 
   constructor(url: string) {
@@ -27,16 +27,16 @@ class MockWebSocket {
     this.sent.push(data);
   }
 
-  close() {
+  close(code?: number) {
     if (this.readyState === MockWebSocket.CLOSED) return;
     this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.();
+    this.onclose?.({ code });
   }
 
   // Test helpers
   simulateOpen() { this.readyState = MockWebSocket.OPEN; this.onopen?.(); }
   simulateMessage(data: string) { this.onmessage?.({ data }); }
-  simulateServerClose() { this.readyState = MockWebSocket.CLOSED; this.onclose?.(); }
+  simulateServerClose(code?: number) { this.readyState = MockWebSocket.CLOSED; this.onclose?.({ code }); }
 }
 
 describe('websocket service', () => {
@@ -102,14 +102,66 @@ describe('websocket service', () => {
     expect(cbs.onNovastarResult).not.toHaveBeenCalled();
   });
 
-  it('schedules a reconnect after server-initiated close', async () => {
+  it('reconnects after a server-initiated close (first attempt at 1s)', async () => {
     const ws = await freshService();
     ws.connect('ws://localhost:3333', makeCallbacks());
     MockWebSocket.instances[0].simulateServerClose();
     expect(MockWebSocket.instances).toHaveLength(1);
-    vi.advanceTimersByTime(3000);
+    vi.advanceTimersByTime(999);
+    expect(MockWebSocket.instances).toHaveLength(1);
+    vi.advanceTimersByTime(1);
     expect(MockWebSocket.instances).toHaveLength(2);
     expect(MockWebSocket.instances[1].url).toBe('ws://localhost:3333');
+  });
+
+  it('uses exponential backoff across repeated failures', async () => {
+    const ws = await freshService();
+    ws.connect('ws://localhost:3333', makeCallbacks());
+
+    // 1st retry after 1s
+    MockWebSocket.instances[0].simulateServerClose();
+    vi.advanceTimersByTime(1000);
+    expect(MockWebSocket.instances).toHaveLength(2);
+
+    // 2nd retry after 2s
+    MockWebSocket.instances[1].simulateServerClose();
+    vi.advanceTimersByTime(1999);
+    expect(MockWebSocket.instances).toHaveLength(2);
+    vi.advanceTimersByTime(1);
+    expect(MockWebSocket.instances).toHaveLength(3);
+
+    // 3rd retry after 4s
+    MockWebSocket.instances[2].simulateServerClose();
+    vi.advanceTimersByTime(3999);
+    expect(MockWebSocket.instances).toHaveLength(3);
+    vi.advanceTimersByTime(1);
+    expect(MockWebSocket.instances).toHaveLength(4);
+  });
+
+  it('resets backoff after a successful open', async () => {
+    const ws = await freshService();
+    ws.connect('ws://localhost:3333', makeCallbacks());
+
+    MockWebSocket.instances[0].simulateServerClose();
+    vi.advanceTimersByTime(1000);
+    expect(MockWebSocket.instances).toHaveLength(2);
+
+    // Successful open resets the backoff counter…
+    MockWebSocket.instances[1].simulateOpen();
+    MockWebSocket.instances[1].simulateServerClose();
+    // …so the next retry is back to 1s, not 2s.
+    vi.advanceTimersByTime(1000);
+    expect(MockWebSocket.instances).toHaveLength(3);
+  });
+
+  it('does not reconnect after an auth rejection (close 1008)', async () => {
+    const ws = await freshService();
+    const cbs = makeCallbacks();
+    ws.connect('ws://localhost:3333/ws/control?pin=000000', cbs);
+    MockWebSocket.instances[0].simulateServerClose(1008);
+    expect(cbs.onStateChange).toHaveBeenCalledWith('unauthorized');
+    vi.advanceTimersByTime(60000);
+    expect(MockWebSocket.instances).toHaveLength(1); // no reconnect
   });
 
   it('disconnect() cancels a pending reconnect timer', async () => {
@@ -117,7 +169,7 @@ describe('websocket service', () => {
     ws.connect('ws://localhost:3333', makeCallbacks());
     MockWebSocket.instances[0].simulateServerClose();
     ws.disconnect();
-    vi.advanceTimersByTime(10000);
+    vi.advanceTimersByTime(60000);
     expect(MockWebSocket.instances).toHaveLength(1); // no reconnect happened
   });
 

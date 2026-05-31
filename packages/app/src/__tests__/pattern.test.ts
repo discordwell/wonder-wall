@@ -77,4 +77,19 @@ describe('patternStore', () => {
     expect(store.params.columns).toBe(12);
     expect(store.params.rows).toBe(prevRows);
   });
+
+  it('applyRemote() mirrors a pushed pattern with exact params (no reset to defaults)', async () => {
+    const store = await freshStore();
+    store.applyRemote('crosshatch', { spacing: 128, lineColor: '#00ff00' });
+    expect(store.current!.id).toBe('crosshatch');
+    expect(store.params.spacing).toBe(128);
+    expect(store.params.lineColor).toBe('#00ff00');
+  });
+
+  it('applyRemote() on unknown id is a no-op', async () => {
+    const store = await freshStore();
+    const before = store.current!.id;
+    store.applyRemote('does-not-exist', { foo: 1 });
+    expect(store.current!.id).toBe(before);
+  });
 });

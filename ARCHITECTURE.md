@@ -51,17 +51,19 @@ Phone app. Pattern picker, fullscreen display, overlay controls, camera-assisted
 Key components:
 - `PatternCanvas` — Fullscreen canvas with DPR-aware rendering
 - `ControlOverlay` — Tap-to-toggle bottom sheet with pattern nav, params, presets
-- `CameraMapper` — ArUco marker detection workflow
+- `CameraMapper` — ArUco marker detection + spatial verification (flags panels wired out of order or rotated, not just present/absent)
 - `NovastarPanel` — Brightness sliders + test mode controls
 - `PresetBar` — Save/load pattern + params combinations
 
 ### `packages/server` — Hono Server
 Networked mode server. WebSocket hub + HDMI output page + Novastar integration.
 
-- `/output` — Self-contained HTML page that renders patterns fullscreen
-- `/ws/control` — WebSocket for phone controllers
-- `/ws/output` — WebSocket for HDMI output clients
-- `/api/novastar/*` — REST API for Novastar controller operations
+- `/output` — Self-contained HTML page that renders patterns fullscreen (PIN injected at serve time)
+- `/ws/control` — WebSocket for phone controllers (PIN-gated via `?pin=`)
+- `/ws/output` — WebSocket for HDMI output clients (PIN-gated via `?pin=`)
+- `/api/status` — Read-only client/connection counts (unauthenticated; for health checks)
+
+All Novastar hardware control flows over the `/ws/control` WebSocket protocol — there is no REST control surface. The PIN is set via `WONDERWALL_PIN` or generated at startup and printed to the console.
 
 ## Key Design Decisions
 
@@ -73,7 +75,11 @@ Networked mode server. WebSocket hub + HDMI output page + Novastar integration.
 
 4. **Self-contained output page** — The server's output page has inline pattern renderers. No build pipeline needed for the HDMI display device.
 
-5. **WebSocket protocol** — Simple JSON messages. Phone sends `{type: "setPattern", id, params}`. Server relays to output. Novastar commands: `{type: "novastar", action, ...params}`.
+5. **WebSocket protocol** — Simple JSON messages. Phone sends `{type: "setPattern", id, params}`. Server relays to output. Novastar commands: `{type: "novastar", action, ...params}`. Every WS connection must present the PIN as a `?pin=` query param (browsers can't set headers on a WS upgrade); a bad PIN is closed with code 1008.
+
+6. **Render at device pixels** — `PatternCanvas` and the output page size the canvas to `cssSize × devicePixelRatio` and draw 1:1 with no `ctx.scale`. This keeps pixel-exact patterns honest (Resolution Check's 1px checkerboard is one physical pixel, Crosshatch hairlines are a single device pixel) on HiDPI/Retina outputs.
+
+7. **PIN auth** — The server controls real LED hardware, so the control and output WebSockets are PIN-gated. The PIN is fixed via `WONDERWALL_PIN` or randomly generated and printed at startup; the served output page has it injected so the HDMI box needs no manual entry.
 
 ## Tech Stack
 

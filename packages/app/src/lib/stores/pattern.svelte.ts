@@ -35,6 +35,19 @@ class PatternStore {
     }
   }
 
+  /**
+   * Apply a pattern + exact params pushed from the server (another controller
+   * changed it). Unlike select(), this preserves the incoming params verbatim
+   * instead of resetting to defaults, and it must NOT trigger a re-send.
+   */
+  applyRemote(id: string, params: Record<string, unknown>) {
+    const pattern = getPattern(id);
+    if (pattern) {
+      this.current = pattern;
+      this.params = { ...params };
+    }
+  }
+
   setParam(key: string, value: unknown) {
     this.params = { ...this.params, [key]: value };
   }

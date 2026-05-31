@@ -45,48 +45,47 @@
     let currentParams = {};
     let animationId = null;
 
-    function resize() {
+    // Size the canvas backing store to physical device pixels and render the
+    // pattern 1:1 in that space (NO ctx.scale). This is what makes pixel-exact
+    // patterns honest: Resolution Check's 1px checkerboard is one physical
+    // pixel, and Crosshatch hairlines are a single device pixel wide, even when
+    // the output device reports devicePixelRatio > 1 (e.g. a Retina/4K screen).
+    function sizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      ctx.scale(dpr, dpr);
-      draw();
+      canvas.width = Math.round(window.innerWidth * dpr);
+      canvas.height = Math.round(window.innerHeight * dpr);
     }
 
     function draw() {
+      const w = canvas.width, h = canvas.height;
       if (!currentPattern) {
         ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = '#333';
         ctx.font = '24px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Waiting for pattern...', window.innerWidth / 2, window.innerHeight / 2);
+        ctx.fillText('Waiting for pattern...', w / 2, h / 2);
         return;
       }
-      // Patterns are rendered by the pattern functions loaded dynamically
-      if (patterns[currentPattern]) {
-        if (patterns[currentPattern].animate) {
-          // Start animation loop
-          return;
-        }
-        patterns[currentPattern].render(ctx, window.innerWidth, window.innerHeight, currentParams);
-      }
+      const pat = patterns[currentPattern];
+      if (!pat) return;
+      // Animated patterns are driven by startAnimation().
+      if (pat.animate) return;
+      pat.render(ctx, w, h, currentParams);
     }
 
     function startAnimation() {
       if (animationId) cancelAnimationFrame(animationId);
       animationId = null;
 
-      if (!currentPattern || !patterns[currentPattern]?.animate) return;
+      const pat = patterns[currentPattern];
+      if (!pat || !pat.animate) return;
 
       function frame(time) {
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = window.innerWidth * dpr;
-        canvas.height = window.innerHeight * dpr;
-        ctx.scale(dpr, dpr);
-        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-        patterns[currentPattern].animate(ctx, window.innerWidth, window.innerHeight, currentParams, time);
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        pat.animate(ctx, w, h, currentParams, time);
         animationId = requestAnimationFrame(frame);
       }
       animationId = requestAnimationFrame(frame);
@@ -336,9 +335,13 @@
           for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
               const i = r*cols + c;
-              if (i >= MARKER_BITS.length) { r = rows; break; }
               const cx = c*cw + cw/2, cy = r*ch + ch/2;
-              drawArucoMarker(ctx, cx - mSize/2, cy - mSize/2, mSize, MARKER_BITS[i]);
+              // Marker only exists for the first MARKER_BITS.length ids; the
+              // label is always drawn so cells beyond the bank stay identifiable
+              // (mirrors the @wonderwall/patterns renderer).
+              if (i < MARKER_BITS.length) {
+                drawArucoMarker(ctx, cx - mSize/2, cy - mSize/2, mSize, MARKER_BITS[i]);
+              }
               const ls = mSize * 0.12;
               ctx.font = `bold ${ls}px sans-serif`; ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
               ctx.fillText(`#${i}`, cx, cy - mSize/2 + mSize + 4);
@@ -349,7 +352,10 @@
     };
 
     // ---- WebSocket connection ----
-    const wsUrl = `ws://${location.host}/ws/output`;
+    // PIN is injected by the server when it serves this page (see /output route),
+    // so the HDMI display pairs automatically with no typing on the TV.
+    const PIN = '__WONDERWALL_PIN__';
+    const wsUrl = `ws://${location.host}/ws/output?pin=${encodeURIComponent(PIN)}`;
     let ws = null;
     let reconnectTimer = null;
 
@@ -370,7 +376,8 @@
             currentPattern = msg.id;
             currentParams = msg.params || {};
             statusEl.classList.add('hidden');
-            resize();
+            sizeCanvas();
+            draw();
             if (patterns[currentPattern]?.animate) {
               startAnimation();
             }
@@ -388,11 +395,12 @@
     }
 
     window.addEventListener('resize', () => {
-      if (animationId) return; // animation loop handles resize
-      resize();
+      sizeCanvas();
+      if (!animationId) draw();
     });
 
-    resize();
+    sizeCanvas();
+    draw();
     connect();
   </script>
 </body>

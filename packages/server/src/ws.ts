@@ -14,6 +14,7 @@ import {
   readDeviceInfo,
   readWallLayout,
   getWallConfig,
+  discoverDevices,
   type BrightnessInfo,
   TestMode,
 } from './services/novastar.js';
@@ -108,6 +109,10 @@ async function handleNovastarCommand(ws: Client, msg: NovastarCommand) {
         const wall = await readWallLayout();
         result = { connected: true, ...info, wall };
         broadcastStatus();
+        break;
+
+      case 'discover':
+        result = { devices: await discoverDevices(msg.subnet as string | undefined) };
         break;
 
       case 'getWallConfig':

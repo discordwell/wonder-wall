@@ -26,3 +26,4 @@ See ARCHITECTURE.md for full system design. Key points:
 ## Deploy
 - **PWA**: `npm run build` then deploy `packages/app/dist/` to any static host (Cloudflare Pages, Netlify, Vercel)
 - **Server**: `npm run dev:server` or `PORT=3333 npx tsx packages/server/src/index.ts` on any device with Node.js + HDMI output. Open `http://localhost:3333/output` in a fullscreen browser.
+- **PIN**: The control/output WebSockets are PIN-gated. The server prints a pairing PIN on startup; set `WONDERWALL_PIN` to keep it fixed across restarts (so paired phones/output boxes stay paired). The phone enters the PIN in Network Mode; the `/output` page is served with the PIN already injected.

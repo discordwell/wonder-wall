@@ -5,7 +5,7 @@ import {
   type NovastarResultMessage,
 } from '@wonderwall/patterns';
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'unauthorized';
 
 export interface WsCallbacks {
   onStateChange: (state: ConnectionState) => void;
@@ -14,18 +14,77 @@ export interface WsCallbacks {
   onNovastarResult?: (msg: NovastarResultMessage) => void;
 }
 
+// WebSocket close code 1008 = policy violation; the server uses it to reject a
+// bad/missing PIN. We treat it as terminal (no auto-reconnect).
+const CLOSE_POLICY_VIOLATION = 1008;
+
+// Reconnect backoff: 1s, 2s, 4s … capped, so a wrong address or a downed
+// server doesn't hammer the network forever at a flat interval.
+const BASE_RECONNECT_MS = 1000;
+const MAX_RECONNECT_MS = 30000;
+
 let ws: WebSocket | null = null;
 let callbacks: WsCallbacks | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let currentUrl: string | null = null;
+let intentionalClose = false;
+let reconnectAttempts = 0;
+let unloadHooked = false;
 
-export function connect(url: string, cbs: WsCallbacks) {
-  callbacks = cbs;
-  disconnect();
+function clearReconnect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
+function teardownSocket() {
+  if (ws) {
+    ws.onopen = ws.onmessage = ws.onerror = null;
+    ws.onclose = null; // detach before close so it can't schedule a reconnect
+    try {
+      ws.close();
+    } catch {
+      // already closing/closed
+    }
+    ws = null;
+  }
+}
+
+function backoffDelay(attempt: number): number {
+  return Math.min(MAX_RECONNECT_MS, BASE_RECONNECT_MS * 2 ** attempt);
+}
+
+function scheduleReconnect() {
+  if (!currentUrl || !callbacks) return;
+  const delay = backoffDelay(reconnectAttempts);
+  reconnectAttempts += 1;
+  reconnectTimer = setTimeout(openSocket, delay);
+}
+
+// Close the socket and stop reconnecting when the page goes away, so a
+// backgrounded tab doesn't keep retrying.
+function hookUnload() {
+  if (unloadHooked || typeof window === 'undefined') return;
+  unloadHooked = true;
+  window.addEventListener('pagehide', () => {
+    intentionalClose = true;
+    clearReconnect();
+    teardownSocket();
+  });
+}
+
+function openSocket() {
+  if (!currentUrl || !callbacks) return;
+  const cbs = callbacks;
+  teardownSocket();
+  clearReconnect();
   cbs.onStateChange('connecting');
 
-  ws = new WebSocket(url);
+  ws = new WebSocket(currentUrl);
 
   ws.onopen = () => {
+    reconnectAttempts = 0;
     cbs.onStateChange('connected');
   };
 
@@ -41,10 +100,15 @@ export function connect(url: string, cbs: WsCallbacks) {
     }
   };
 
-  ws.onclose = () => {
+  ws.onclose = (evt) => {
+    const code = (evt as CloseEvent | undefined)?.code;
+    if (code === CLOSE_POLICY_VIOLATION) {
+      // Wrong PIN — surface it and stop, retrying won't help.
+      cbs.onStateChange('unauthorized');
+      return;
+    }
     cbs.onStateChange('disconnected');
-    // Auto-reconnect after 3 seconds
-    reconnectTimer = setTimeout(() => connect(url, cbs), 3000);
+    if (!intentionalClose) scheduleReconnect();
   };
 
   ws.onerror = () => {
@@ -52,16 +116,20 @@ export function connect(url: string, cbs: WsCallbacks) {
   };
 }
 
+export function connect(url: string, cbs: WsCallbacks) {
+  callbacks = cbs;
+  currentUrl = url;
+  intentionalClose = false;
+  reconnectAttempts = 0;
+  hookUnload();
+  openSocket();
+}
+
 export function disconnect() {
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  if (ws) {
-    ws.onclose = null; // Prevent auto-reconnect
-    ws.close();
-    ws = null;
-  }
+  intentionalClose = true;
+  clearReconnect();
+  reconnectAttempts = 0;
+  teardownSocket();
   callbacks?.onStateChange('disconnected');
 }
 

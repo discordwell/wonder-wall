@@ -18,7 +18,12 @@ function loadFromStorage(): Preset[] {
 }
 
 function saveToStorage(presets: Preset[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+  } catch {
+    // Private mode / quota exceeded — keep the in-memory list working; the
+    // presets just won't survive a reload.
+  }
 }
 
 class PresetStore {

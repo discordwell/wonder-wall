@@ -22,17 +22,23 @@
 
   const totalSteps = DIAGNOSTIC_STEPS.length;
 
+  // Plain (non-reactive) flag so the async run loop and the $effect teardown
+  // can abort the sequence and release the camera if the view goes away.
+  let cancelled = false;
+
   async function run() {
     phase = 'running';
     currentStep = 0;
     results = [];
     error = null;
+    cancelled = false;
 
     try {
       await startCamera(video);
     } catch (e) {
       error = `Camera access denied: ${(e as Error).message}`;
       phase = 'ready';
+      stopCamera();
       return;
     }
 
@@ -48,6 +54,7 @@
 
       // Wait for the wall to display the pattern
       await new Promise((r) => setTimeout(r, 1500));
+      if (cancelled) { stopCamera(); return; }
 
       // Capture and analyze
       const frame = captureFrame(video);
@@ -60,6 +67,21 @@
     report = generateReport(results, wallStore.columns, wallStore.rows);
     phase = 'results';
   }
+
+  function cancel() {
+    cancelled = true;
+    stopCamera();
+    onClose();
+  }
+
+  // Always release the camera when this component is torn down, even if the
+  // run loop is still mid-sequence.
+  $effect(() => {
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+  });
 
   function exportReport() {
     if (!report) return;
@@ -84,7 +106,8 @@
   {#if phase === 'ready'}
     <div class="intro">
       <h2>Quick Diagnostics</h2>
-      <p>Automated wall health check. Displays 5 test patterns (R, G, B, White, Black), captures each with the camera, and detects dead/stuck pixels.</p>
+      <p>Shows R, G, B, White and Black fields and photographs each with your camera to surface gross non-uniformity and obvious dead zones.</p>
+      <p class="caveat">Rough visual aid only — phone-camera vignetting, moiré and auto-exposure all skew the result. Treat it as a hint, not a verdict, and confirm anything it flags by eye.</p>
       <p class="detail">Wall: {wallStore.columns} x {wallStore.rows} ({wallStore.totalPanels} panels)</p>
       <p class="detail">Takes about 10 seconds. Point your camera at the wall before starting.</p>
       {#if error}
@@ -115,6 +138,7 @@
       </div>
       <p class="step-name">Testing {DIAGNOSTIC_STEPS[currentStep]?.name}...</p>
       <p class="step-detail">Capturing and analyzing</p>
+      <button class="btn secondary" onclick={cancel}>Cancel</button>
     </div>
 
   {:else if phase === 'results' && report}
@@ -124,9 +148,9 @@
           {report.overallScore}
         </div>
         <div class="score-label">
-          <span>Wall Health Score</span>
+          <span>Relative Uniformity</span>
           <span class="anomaly-count">
-            {report.totalAnomalies === 0 ? 'No anomalies detected' : `${report.totalAnomalies} anomal${report.totalAnomalies === 1 ? 'y' : 'ies'} detected`}
+            {report.totalAnomalies === 0 ? 'No uneven regions flagged' : `${report.totalAnomalies} region${report.totalAnomalies === 1 ? '' : 's'} flagged — verify by eye`}
           </span>
         </div>
       </div>
@@ -180,6 +204,14 @@
   h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
   p { color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 8px; }
   .detail { color: rgba(255,255,255,0.4); font-size: 13px; }
+  .caveat {
+    color: rgba(251, 191, 36, 0.85);
+    font-size: 12px;
+    background: rgba(251, 191, 36, 0.08);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
   .error { color: #f87171; }
 
   .actions {

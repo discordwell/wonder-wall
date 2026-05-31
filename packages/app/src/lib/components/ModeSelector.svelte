@@ -8,11 +8,12 @@
   let { onConnected }: Props = $props();
 
   let host = $state('');
+  let pin = $state('');
   let connecting = $state(false);
   let error = $state<string | null>(null);
 
   async function handleConnect() {
-    if (!host.trim()) return;
+    if (!host.trim() || !pin.trim()) return;
     error = null;
     connecting = true;
 
@@ -20,15 +21,20 @@
     let target = host.trim();
     if (!target.includes(':')) target += ':3333';
 
-    connectionStore.connect(target);
+    connectionStore.connect(target, pin.trim());
 
-    // Wait up to 5 seconds for connection
+    // Wait up to 5 seconds for the connection to open or be rejected.
     const start = Date.now();
     while (Date.now() - start < 5000) {
       await new Promise((r) => setTimeout(r, 200));
       if (connectionStore.state === 'connected') {
         connecting = false;
         onConnected();
+        return;
+      }
+      if (connectionStore.state === 'unauthorized') {
+        connecting = false;
+        error = connectionStore.error ?? 'Invalid PIN';
         return;
       }
     }
@@ -51,10 +57,21 @@
       disabled={connecting}
       onkeydown={(e) => e.key === 'Enter' && handleConnect()}
     />
-    <button class="btn primary" onclick={handleConnect} disabled={connecting || !host.trim()}>
+    <input
+      class="pin-input"
+      type="text"
+      inputmode="numeric"
+      autocomplete="off"
+      bind:value={pin}
+      placeholder="PIN"
+      disabled={connecting}
+      onkeydown={(e) => e.key === 'Enter' && handleConnect()}
+    />
+    <button class="btn primary" onclick={handleConnect} disabled={connecting || !host.trim() || !pin.trim()}>
       {connecting ? 'Connecting...' : 'Connect'}
     </button>
   </div>
+  <p class="pin-hint">The PIN is printed in the server's console on startup.</p>
 
   {#if error}
     <p class="error">{error}</p>
@@ -106,6 +123,19 @@
 
   input::placeholder {
     color: #666;
+  }
+
+  .pin-input {
+    flex: 0 0 84px;
+    text-align: center;
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pin-hint {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 12px;
+    margin-top: 8px;
   }
 
   .btn {

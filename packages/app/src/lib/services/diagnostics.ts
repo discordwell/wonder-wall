@@ -112,12 +112,18 @@ export function analyzeFrame(
 
   const avgDeviation = sampleCount > 0 ? totalDeviation / sampleCount : 0;
   const uniformityScore = Math.round(Math.max(0, 100 - avgDeviation * 2));
-  const avgBrightness = Math.round(
-    Array.from({ length: Math.min(1000, width * height) }, (_, i) => {
-      const idx = Math.floor(i * (width * height) / 1000) * 4;
-      return (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-    }).reduce((a, b) => a + b, 0) / 1000,
-  );
+
+  // Average brightness over up to 1000 evenly-spaced pixel samples. Divide by
+  // the actual sample count (not a hardcoded 1000) so small frames aren't
+  // under-reported.
+  const totalPixels = width * height;
+  const brightnessSamples = Math.min(1000, totalPixels);
+  let brightnessSum = 0;
+  for (let s = 0; s < brightnessSamples; s++) {
+    const idx = Math.floor((s * totalPixels) / brightnessSamples) * 4;
+    brightnessSum += (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+  }
+  const avgBrightness = brightnessSamples > 0 ? Math.round(brightnessSum / brightnessSamples) : 0;
 
   return {
     pattern: patternName,

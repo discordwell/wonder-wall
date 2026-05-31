@@ -10,26 +10,36 @@ import {
   handleNovastarResult,
   type NovastarState,
 } from '../services/novastar-client.ts';
+import { patternStore } from './pattern.svelte.ts';
 
 class ConnectionStore {
   state = $state<ConnectionState>('disconnected');
   serverUrl = $state<string>('');
   outputClients = $state(0);
+  error = $state<string | null>(null);
   novastar = $state<NovastarState>(createDefaultNovastarState());
 
-  connect(host: string) {
-    const url = `ws://${host}/ws/control`;
+  connect(host: string, pin: string) {
+    const url = `ws://${host}/ws/control?pin=${encodeURIComponent(pin)}`;
     this.serverUrl = host;
+    this.error = null;
 
     wsConnect(url, {
       onStateChange: (s) => {
         this.state = s;
-        if (s === 'disconnected') {
+        if (s === 'connected') {
+          this.error = null;
+        } else if (s === 'unauthorized') {
+          this.error = 'Invalid PIN — check the code shown on the server.';
+          this.novastar = createDefaultNovastarState();
+        } else if (s === 'disconnected') {
           this.novastar = createDefaultNovastarState();
         }
       },
-      onPattern: () => {
-        // Pattern echo from server — we already have it locally
+      onPattern: (id, params) => {
+        // Another controller (or our own echo) changed the pattern — mirror it
+        // locally so multiple phones stay in sync. Does not re-send.
+        patternStore.applyRemote(id, params);
       },
       onStatus: (status) => {
         this.outputClients = status.outputClients;
@@ -49,6 +59,7 @@ class ConnectionStore {
     wsDisconnect();
     this.state = 'disconnected';
     this.outputClients = 0;
+    this.error = null;
     this.novastar = createDefaultNovastarState();
   }
 

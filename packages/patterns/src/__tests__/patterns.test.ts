@@ -5,6 +5,7 @@ import {
   getDefaultParams,
   renderPattern,
   getParam,
+  sanitizeParams,
   parseClientMessage,
   parseServerMessage,
 } from '../index.js';
@@ -60,6 +61,57 @@ describe('getParam', () => {
     expect(getParam({ cols: '4' }, 'cols', 10)).toBe(10);
     expect(getParam({ active: 'true' }, 'active', false)).toBe(false);
     expect(getParam({ label: 99 }, 'label', 'fallback')).toBe('fallback');
+  });
+
+  it('falls back on non-finite numbers (typeof NaN/Infinity is "number")', () => {
+    expect(getParam({ n: NaN }, 'n', 7)).toBe(7);
+    expect(getParam({ n: Infinity }, 'n', 7)).toBe(7);
+    expect(getParam({ n: -Infinity }, 'n', 7)).toBe(7);
+  });
+});
+
+describe('sanitizeParams', () => {
+  it('clamps numbers to the declared [min, max] range', () => {
+    const crosshatch = getPattern('crosshatch')!;
+    expect(sanitizeParams(crosshatch, { spacing: 0 }).spacing).toBe(8); // min
+    expect(sanitizeParams(crosshatch, { spacing: -50 }).spacing).toBe(8); // min
+    expect(sanitizeParams(crosshatch, { spacing: 99999 }).spacing).toBe(512); // max
+    expect(sanitizeParams(crosshatch, { spacing: 100 }).spacing).toBe(100); // in range
+  });
+
+  it('rejects non-finite / wrong-type numbers in favor of the default', () => {
+    const grid = getPattern('numbered-grid')!;
+    expect(sanitizeParams(grid, { columns: NaN }).columns).toBe(4); // default
+    expect(sanitizeParams(grid, { columns: '8' }).columns).toBe(4); // stringified → default
+    expect(sanitizeParams(grid, { columns: Infinity }).columns).toBe(4); // non-finite → default
+  });
+
+  it('rounds integer-valued numbers', () => {
+    const grid = getPattern('numbered-grid')!;
+    expect(sanitizeParams(grid, { columns: 5.9 }).columns).toBe(6);
+  });
+
+  it('validates selects against their options', () => {
+    const smpte = getPattern('smpte-bars')!;
+    expect(sanitizeParams(smpte, { intensity: '100' }).intensity).toBe('100');
+    expect(sanitizeParams(smpte, { intensity: 'bogus' }).intensity).toBe('75'); // default
+    // A relayed numeric 100 normalizes to the declared string value.
+    expect(sanitizeParams(smpte, { intensity: 100 }).intensity).toBe('100');
+  });
+
+  it('drops keys not declared by the pattern', () => {
+    const solid = getPattern('solid')!;
+    const out = sanitizeParams(solid, { color: '#00ff00', evil: 'x', __proto__: 'y' });
+    expect(out).toEqual({ color: '#00ff00' });
+    expect('evil' in out).toBe(false);
+  });
+
+  it('is a no-op on every pattern\'s own default params', () => {
+    // Sanitizing valid defaults must never alter them, or the UI would drift.
+    for (const pattern of getAllPatterns()) {
+      const defaults = getDefaultParams(pattern);
+      expect(sanitizeParams(pattern, defaults)).toEqual(defaults);
+    }
   });
 });
 
@@ -408,6 +460,47 @@ describe('uniformity white', () => {
     renderPattern({ pattern, ctx, width, height, params: { brightness: '100' } });
     const pixel = getPixel(ctx, 100, 10);
     expect(pixel[0]).toBeGreaterThan(250);
+  });
+});
+
+describe('pathological params never hang the render', () => {
+  // These guard a real infinite-loop class: a `for (x = 0; x <= w; x += step)`
+  // loop where `step` comes from a param hangs forever if step is 0 or negative.
+  // Such a param is reachable over the WebSocket protocol from any paired
+  // controller. If a guard regresses, these tests hang the suite (a loud CI
+  // failure) rather than passing — that's the intended tripwire.
+
+  it('crosshatch render terminates with spacing 0 and negative (intrinsic guard)', () => {
+    const crosshatch = getPattern('crosshatch')!;
+    const { ctx, width, height } = createTestCanvas(64, 64);
+    // Direct render bypasses renderPattern's sanitizer, exercising the
+    // pattern's own Math.max clamp.
+    expect(() => crosshatch.render(ctx, width, height, { spacing: 0 })).not.toThrow();
+    expect(() => crosshatch.render(ctx, width, height, { spacing: -5 })).not.toThrow();
+  });
+
+  it('renderPattern clamps crosshatch spacing 0 to the declared min', () => {
+    const crosshatch = getPattern('crosshatch')!;
+    const { ctx, width, height } = createTestCanvas(64, 64);
+    renderPattern({ pattern: crosshatch, ctx, width, height, params: { spacing: 0 } });
+    // Clamped to min (8), not fallen back to the default (64): a vertical line
+    // sits at x=8, and the interior of the first cell is black.
+    expect(pixelMatches(getPixel(ctx, 8, 4), [255, 255, 255])).toBe(true);
+    expect(pixelMatches(getPixel(ctx, 4, 4), [0, 0, 0])).toBe(true);
+  });
+
+  it('resolution-check render terminates with blockSize 0 (intrinsic guard)', () => {
+    const res = getPattern('resolution-check')!;
+    const { ctx, width, height } = createTestCanvas(64, 64);
+    expect(() => res.render(ctx, width, height, { blockSize: 0 })).not.toThrow();
+    expect(() => res.render(ctx, width, height, { blockSize: -3 })).not.toThrow();
+  });
+
+  it('motion-test animate terminates with barWidth 0 (intrinsic guard)', () => {
+    const motion = getPattern('motion-test')!;
+    const { ctx, width, height } = createTestCanvas(64, 64);
+    expect(() => motion.animate!(ctx, width, height, { barWidth: 0 }, 500)).not.toThrow();
+    expect(() => motion.animate!(ctx, width, height, { barWidth: -10 }, 500)).not.toThrow();
   });
 });
 

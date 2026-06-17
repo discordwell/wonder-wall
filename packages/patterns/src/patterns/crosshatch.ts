@@ -39,7 +39,9 @@ export const crosshatch: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const spacing = getParam(params, 'spacing', 64);
+    // Clamp to >= 1px: a zero or negative spacing would make the `x += spacing`
+    // grid loops below never terminate (an infinite-loop hang on the output).
+    const spacing = Math.max(1, getParam(params, 'spacing', 64));
     const lineColor = getParam(params, 'lineColor', '#ffffff');
     const bgColor = getParam(params, 'bgColor', '#000000');
     const lineWidth = getParam(params, 'lineWidth', 1);

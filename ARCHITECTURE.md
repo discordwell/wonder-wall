@@ -81,6 +81,8 @@ All Novastar hardware control flows over the `/ws/control` WebSocket protocol �
 
 7. **PIN auth** — The server controls real LED hardware, so the control and output WebSockets are PIN-gated. The PIN is fixed via `WONDERWALL_PIN` or randomly generated and printed at startup; the served output page has it injected so the HDMI box needs no manual entry.
 
+8. **Sanitize params at the boundary** — Every pattern parameter declares `min`/`max`/`type`. `sanitizeParams(pattern, raw)` (in `@wonderwall/patterns`) is the single enforcement point for that contract: it clamps numbers into range, rejects non-finite/wrong-typed values to the default, validates select choices, and drops unknown keys. It runs at the two points where external params enter rendering — `renderPattern`/`createAnimationLoop` (the whole app, both modes) and the server's `setPattern` relay (the HDMI output page and relayed controllers). Without it, a malformed or hostile WebSocket message could drive a render into an infinite loop (e.g. crosshatch `spacing: 0`), a divide-by-zero, or a pathological iteration count — a denial of service on real hardware, which is exactly what the PIN gate exists to prevent. The looping patterns (crosshatch, resolution-check, motion-test) additionally clamp their step size intrinsically, so the pure functions can't hang even on a direct library call.
+
 ## Tech Stack
 
 | Layer | Choice |

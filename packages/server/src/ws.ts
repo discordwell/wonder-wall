@@ -3,6 +3,8 @@ import {
   type NovastarCommand,
   type StatusMessage,
   parseClientMessage,
+  getPattern,
+  sanitizeParams,
 } from '@wonderwall/patterns';
 import {
   isConnected as novastarConnected,
@@ -85,8 +87,15 @@ export function handleControllerMessage(ws: Client, data: string) {
   const msg = parseClientMessage(data);
   if (!msg) return;
   if (msg.type === 'setPattern') {
-    currentPattern = { id: msg.id, params: msg.params ?? {} };
-    const outMsg = JSON.stringify({ type: 'pattern', id: msg.id, params: msg.params ?? {} });
+    // Only relay patterns we recognise, and clamp their params to the declared
+    // contract before they reach the output box (whose inline renderers can be
+    // driven into an infinite loop by e.g. crosshatch spacing <= 0) and the
+    // other controllers. A bad PIN is the first gate; this is the second.
+    const pattern = getPattern(msg.id);
+    if (!pattern) return;
+    const params = sanitizeParams(pattern, msg.params ?? {});
+    currentPattern = { id: msg.id, params };
+    const outMsg = JSON.stringify({ type: 'pattern', id: msg.id, params });
     broadcast(outputs, outMsg);
     broadcast(controllers, outMsg);
   } else if (msg.type === 'novastar') {

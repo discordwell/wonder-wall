@@ -12,7 +12,9 @@ export const resolutionCheck: TestPattern = {
     { key: 'color2', label: 'Color 2', type: 'color', default: '#000000' },
   ],
   render(ctx, w, h, params) {
-    const size = getParam(params, 'blockSize', 1);
+    // Clamp to >= 1px: a zero or negative block size would make the `+= size`
+    // checkerboard loops below never terminate (an infinite-loop hang).
+    const size = Math.max(1, getParam(params, 'blockSize', 1));
     const c1 = getParam(params, 'color1', '#ffffff');
     const c2 = getParam(params, 'color2', '#000000');
 

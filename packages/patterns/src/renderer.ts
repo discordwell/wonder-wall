@@ -1,4 +1,5 @@
 import type { TestPattern } from './types.js';
+import { sanitizeParams } from './utils.js';
 
 export interface RenderOptions {
   pattern: TestPattern;
@@ -10,13 +11,16 @@ export interface RenderOptions {
 
 export function renderPattern({ pattern, ctx, width, height, params }: RenderOptions): void {
   ctx.clearRect(0, 0, width, height);
-  pattern.render(ctx, width, height, params);
+  pattern.render(ctx, width, height, sanitizeParams(pattern, params));
 }
 
 export function createAnimationLoop(
   options: RenderOptions & { onFrame?: () => void },
 ): () => void {
-  const { pattern, ctx, width, height, params, onFrame } = options;
+  const { pattern, ctx, width, height, onFrame } = options;
+  // Clamp once at loop start; params don't change mid-loop (PatternCanvas
+  // recreates the loop when they do), so per-frame sanitizing would be wasteful.
+  const params = sanitizeParams(pattern, options.params);
 
   if (!pattern.animate) {
     renderPattern({ pattern, ctx, width, height, params });

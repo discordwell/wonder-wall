@@ -20,7 +20,7 @@ export const motionTest: TestPattern = {
   render(ctx, w, h, params) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
-    const barW = getParam(params, 'barWidth', 40);
+    const barW = Math.max(1, getParam(params, 'barWidth', 40));
     const color = getParam(params, 'color', '#ffffff');
     const isH = getParam<string>(params, 'direction', 'horizontal') === 'horizontal';
     ctx.fillStyle = color;
@@ -31,7 +31,9 @@ export const motionTest: TestPattern = {
     }
   },
   animate(ctx, w, h, params, time) {
-    const barW = getParam(params, 'barWidth', 40);
+    // Clamp to >= 1px: barWidth 0 makes `spacing = barW * 3` zero, so the
+    // `x += spacing` bar loop below never terminates (an infinite-loop hang).
+    const barW = Math.max(1, getParam(params, 'barWidth', 40));
     const speed = getParam(params, 'speed', 200);
     const color = getParam(params, 'color', '#ffffff');
     const isH = getParam<string>(params, 'direction', 'horizontal') === 'horizontal';

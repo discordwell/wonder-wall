@@ -502,6 +502,40 @@ describe('pathological params never hang the render', () => {
     expect(() => motion.animate!(ctx, width, height, { barWidth: 0 }, 500)).not.toThrow();
     expect(() => motion.animate!(ctx, width, height, { barWidth: -10 }, 500)).not.toThrow();
   });
+
+  it('brightness-steps render emits no NaN colour or label with steps 1', () => {
+    // steps=1 makes the canonical `i / (steps - 1)` evaluate 0/0 = NaN, which
+    // leaks into `fillStyle = "rgb(NaN,NaN,NaN)"` and a literal "NaN%" label
+    // (fillText draws that string verbatim on the wall). A recording context
+    // captures every colour/text the pure function emits and asserts none carry
+    // NaN. sanitizeParams clamps to min 5, but the pure function must not rely
+    // on that — mirrors the guard already in gradient.ts.
+    const fillStyles: string[] = [];
+    const texts: string[] = [];
+    const rec = {
+      set fillStyle(v: string) { fillStyles.push(String(v)); },
+      get fillStyle() { return ''; },
+      set strokeStyle(_v: string) {},
+      font: '',
+      textAlign: '' as CanvasTextAlign,
+      textBaseline: '' as CanvasTextBaseline,
+      lineWidth: 0,
+      fillRect() {},
+      strokeRect() {},
+      fillText(t: string) { texts.push(String(t)); },
+    } as unknown as CanvasRenderingContext2D;
+
+    const brightness = getPattern('brightness-steps')!;
+    expect(() =>
+      brightness.render(rec, 200, 100, { steps: 1, showLabels: true }),
+    ).not.toThrow();
+    expect(fillStyles.length, 'expected at least one fill').toBeGreaterThan(0);
+    expect(
+      fillStyles.find((s) => s.includes('NaN')),
+      'fillStyle leaked a NaN colour',
+    ).toBeUndefined();
+    expect(texts.find((t) => t.includes('NaN')), 'label leaked NaN%').toBeUndefined();
+  });
 });
 
 describe('renderPattern', () => {

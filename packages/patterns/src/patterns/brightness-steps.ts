@@ -22,7 +22,10 @@ export const brightnessSteps: TestPattern = {
     const stepSize = size / steps;
 
     for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
+      // Guard the single-step case so a direct, unsanitized render({steps:1})
+      // can't divide by zero (sanitizeParams clamps to min 5, but the pure
+      // function shouldn't depend on that — mirrors gradient.ts).
+      const t = steps <= 1 ? 0 : i / (steps - 1);
       const v = Math.round(t * 255);
       ctx.fillStyle = `rgb(${v},${v},${v})`;
 

@@ -111,33 +111,43 @@ export async function connectToDevice(
 
     const timer = setTimeout(() => {
       settle(() => {
-        socket?.destroy();
+        sock.destroy();
         reject(new Error(`Connection timeout to ${host}:${port}`));
       });
     }, CONNECT_TIMEOUT);
 
-    socket = tcpConnect(port, host, () => {
+    // Bind everything to THIS socket via a local, not the module-level `socket`.
+    // A reconnect destroys the previous socket, whose 'close' fires on a later
+    // tick; if its handler read/wrote the shared module state it would null out
+    // the freshly-established connection. Capturing `sock` keeps each socket's
+    // lifecycle callbacks scoped to itself.
+    const sock = tcpConnect(port, host, () => {
       settle(() => {
         try {
-          connection = new Connection(socket!);
+          connection = new Connection(sock);
           session = new Session(connection) as any;
           deviceAddress = host;
           resolve({ address: host, modelId: null, connected: true });
         } catch (err) {
-          socket?.destroy();
+          sock.destroy();
           reject(err as Error);
         }
       });
     });
+    socket = sock;
 
-    socket.on('error', (err) => {
+    sock.on('error', (err) => {
       settle(() => reject(new Error(`Failed to connect to ${host}: ${err.message}`)));
     });
 
-    socket.on('close', () => {
-      session = null;
-      connection = null;
-      socket = null;
+    sock.on('close', () => {
+      // Only reset shared state if this socket is still the active one. An old
+      // socket closing after a reconnect must not disturb the new connection.
+      if (socket === sock) {
+        session = null;
+        connection = null;
+        socket = null;
+      }
     });
   });
 }

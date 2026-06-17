@@ -278,7 +278,7 @@
           const steps = p.steps||21, isH = (p.direction||'horizontal')==='horizontal', labels = p.showLabels!==false;
           const sz = isH?w:h, ss = sz/steps;
           for (let i=0;i<steps;i++) {
-            const t = i/(steps-1), v = Math.round(t*255);
+            const t = steps<=1?0:i/(steps-1), v = Math.round(t*255);
             ctx.fillStyle=`rgb(${v},${v},${v})`;
             if (isH) { const x=Math.round(i*ss); ctx.fillRect(x,0,Math.round((i+1)*ss)-x,h); }
             else { const y=Math.round(i*ss); ctx.fillRect(0,y,w,Math.round((i+1)*ss)-y); }

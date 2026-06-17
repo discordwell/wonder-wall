@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createServer, type Server, type Socket } from 'node:net';
-import { connectToDevice, disconnectDevice } from '../services/novastar.js';
+import { connectToDevice, disconnectDevice, isConnected, getStatus } from '../services/novastar.js';
 
 /**
  * These tests exercise the connectToDevice promise contract:
@@ -80,6 +80,48 @@ describe('connectToDevice settlement', () => {
     } finally {
       disconnectDevice();
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('keeps the new connection alive when the previous socket closes after a reconnect', async () => {
+    // Switching devices (or reconnecting) implicitly disconnects the old socket.
+    // That destroy() fires the old socket's 'close' asynchronously — and the
+    // close handler must NOT null out the module state that now belongs to the
+    // freshly-established connection. Regression test for a stale-close race.
+    const passive = (): Promise<{ server: Server; port: number }> =>
+      new Promise((resolve) => {
+        const server = createServer(() => {
+          /* hold open */
+        });
+        server.listen(0, '127.0.0.1', () =>
+          resolve({ server, port: (server.address() as { port: number }).port }),
+        );
+      });
+
+    const a = await passive();
+    const b = await passive();
+    try {
+      await connectToDevice('127.0.0.1', a.port);
+      expect(isConnected()).toBe(true);
+
+      // Reconnect to a different device. This destroys socket A; its 'close'
+      // lands on a later tick, after B is already the active connection. With
+      // the bug, A's unconditional close handler nulls the shared module state
+      // mid-handshake, so this connect never settles cleanly — it hangs to the
+      // CONNECT_TIMEOUT (the test then fails by timeout). With the fix it
+      // resolves promptly and B stays the live connection.
+      const info = await connectToDevice('127.0.0.1', b.port);
+      expect(info.connected).toBe(true);
+
+      // Give A's pending 'close' ample time to fire, then confirm it didn't
+      // disturb B.
+      await new Promise((r) => setTimeout(r, 100));
+      expect(isConnected(), 'B connection clobbered by A’s stale close handler').toBe(true);
+      expect(getStatus()?.address).toBe('127.0.0.1');
+    } finally {
+      disconnectDevice();
+      await new Promise<void>((resolve) => a.server.close(() => resolve()));
+      await new Promise<void>((resolve) => b.server.close(() => resolve()));
     }
   });
 });

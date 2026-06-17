@@ -20,7 +20,7 @@ See ARCHITECTURE.md for full system design. Key points:
 - Svelte stores use `$state` rune and must be in `.svelte.ts` files
 - PWA manifest: `display: fullscreen`, `orientation: landscape`, black theme
 - npm workspaces — three packages: `@wonderwall/patterns`, `@wonderwall/app`, `@wonderwall/server`
-- The server output page (`packages/server/output/index.html`) has inline pattern renderers — keep them in sync with the patterns package
+- The server output page (`packages/server/output/index.html`) has inline pattern renderers — keep them in sync with the patterns package. `output-render-parity.test.ts` enforces this by pixel-comparing each inline renderer against its `@wonderwall/patterns` twin on a node-canvas (must diff to zero), so drift fails the build rather than silently shipping to the HDMI box.
 - Novastar @native API methods are imported selectively to minimize bundle
 
 ## Deploy

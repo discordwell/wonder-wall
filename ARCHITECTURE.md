@@ -73,7 +73,7 @@ All Novastar hardware control flows over the `/ws/control` WebSocket protocol �
 
 3. **Camera + HDMI are independent** — `getUserMedia` captures from the rear camera while the screen outputs via HDMI. No unplugging needed for panel mapping.
 
-4. **Self-contained output page** — The server's output page has inline pattern renderers. No build pipeline needed for the HDMI display device.
+4. **Self-contained output page** — The server's output page has inline pattern renderers. No build pipeline needed for the HDMI display device. The duplication is fenced by a pixel-parity test (`output-render-parity.test.ts`): it lifts the inline `patterns` registry out of `output/index.html`, renders every pattern (and every animation frame) on a node-canvas next to its `@wonderwall/patterns` twin, and asserts the buffers are byte-identical. node-canvas is deterministic, so faithful renderers diff to exactly zero pixels while cosmetic source differences (`hsl()` spacing, `#fff` vs `#ffffff`) collapse to the same pixels — only a *visible* divergence (a dropped label, a wrong colour, an off-by-rounding font or label position) trips it.
 
 5. **WebSocket protocol** — Simple JSON messages. Phone sends `{type: "setPattern", id, params}`. Server relays to output. Novastar commands: `{type: "novastar", action, ...params}`. Every WS connection must present the PIN as a `?pin=` query param (browsers can't set headers on a WS upgrade); a bad PIN is closed with code 1008.
 

@@ -1,5 +1,4 @@
 import {
-  isConnected,
   readBrightness,
   readTestMode,
   readDeviceInfo,

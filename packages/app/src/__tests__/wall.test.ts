@@ -49,6 +49,25 @@ describe('wallStore', () => {
     expect(store.rows).toBe(3);
   });
 
+  // Valid JSON of the wrong shape parses fine but would make `config.columns`
+  // throw (null) or `totalPanels` NaN (missing/non-numeric fields). Each must
+  // fall back to the 4x3 default instead.
+  it.each([
+    ['null', 'null'],
+    ['empty object', '{}'],
+    ['array', '[6,4]'],
+    ['missing rows', '{"columns":6}'],
+    ['non-numeric', '{"columns":"6","rows":"4"}'],
+    ['zero/negative', '{"columns":0,"rows":-3}'],
+  ])('falls back to default for wrong-shape storage: %s', async (_label, stored) => {
+    localStorage.setItem('wonderwall-wall-config', stored);
+    const store = await freshStore();
+    expect(() => store.columns).not.toThrow();
+    expect(store.columns).toBe(4);
+    expect(store.rows).toBe(3);
+    expect(store.totalPanels).toBe(12);
+  });
+
   it('set() survives a throwing localStorage (quota / private mode)', async () => {
     const store = await freshStore();
     const spy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {

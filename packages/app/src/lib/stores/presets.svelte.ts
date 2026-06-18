@@ -8,10 +8,31 @@ export interface Preset {
 
 const STORAGE_KEY = 'wonderwall-presets';
 
+/**
+ * A persisted entry is only usable if it carries the fields the store and UI
+ * rely on (id/name for keying + rename/remove, patternId + params for applying).
+ * Missing/extra fields would otherwise crash a render or a list operation.
+ */
+function isPreset(v: unknown): v is Preset {
+  if (typeof v !== 'object' || v === null) return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.id === 'string' &&
+    typeof p.name === 'string' &&
+    typeof p.patternId === 'string' &&
+    typeof p.params === 'object' && p.params !== null
+  );
+}
+
 function loadFromStorage(): Preset[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    // Tolerate valid-but-wrong-shape JSON (stale schema, foreign or tampered
+    // localStorage): a non-array would make save/remove/rename throw on the
+    // array methods below, so drop it entirely and keep only well-formed entries.
+    return Array.isArray(parsed) ? parsed.filter(isPreset) : [];
   } catch {
     return [];
   }

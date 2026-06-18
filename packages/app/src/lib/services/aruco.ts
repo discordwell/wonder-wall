@@ -170,7 +170,11 @@ export function detectionCoverage(
   rows: number,
 ): { found: number; total: number; missing: number[] } {
   const total = columns * rows;
-  const foundIds = new Set(markers.filter((m) => m.id < total).map((m) => m.id));
+  // Match buildPanelMap's `valid` filter: a marker id must be in [0, total).
+  // A negative id (e.g. from a corrupt/mocked detection) would otherwise be
+  // counted as "found" yet never appear in the 0..total-1 expected range,
+  // inflating the coverage count.
+  const foundIds = new Set(markers.filter((m) => m.id >= 0 && m.id < total).map((m) => m.id));
   const missing: number[] = [];
 
   for (let i = 0; i < total; i++) {

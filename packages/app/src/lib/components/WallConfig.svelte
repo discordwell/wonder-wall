@@ -95,6 +95,7 @@
     text-align: center;
     outline: none;
     -moz-appearance: textfield;
+    appearance: textfield;
   }
 
   input[type="number"]::-webkit-inner-spin-button { opacity: 1; }

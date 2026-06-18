@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildPanelMap, observedGridPositions, type DetectedMarker } from '../lib/services/aruco.ts';
+import {
+  buildPanelMap,
+  observedGridPositions,
+  detectionCoverage,
+  type DetectedMarker,
+} from '../lib/services/aruco.ts';
 
 const CELL = 100;
 
@@ -92,5 +97,30 @@ describe('ArUco spatial verification', () => {
     );
     expect(positions[0]).toEqual({ col: 2, row: 1 });
     expect(positions[1]).toEqual({ col: 0, row: 0 });
+  });
+
+  describe('detectionCoverage', () => {
+    it('reports full coverage for a perfect grid', () => {
+      const cov = detectionCoverage(perfectGrid(2, 2), 2, 2);
+      expect(cov).toEqual({ found: 4, total: 4, missing: [] });
+    });
+
+    it('lists the ids that are missing', () => {
+      const markers = perfectGrid(3, 1).filter((m) => m.id !== 1);
+      const cov = detectionCoverage(markers, 3, 1);
+      expect(cov.found).toBe(2);
+      expect(cov.missing).toEqual([1]);
+    });
+
+    // Mirrors buildPanelMap's `id >= 0 && id < total` filter: a negative id
+    // (corrupt/mocked detection) must not be counted as found, which would
+    // otherwise inflate the coverage count past the real number of panels.
+    it('ignores ids outside [0, total)', () => {
+      const markers = [...perfectGrid(2, 2), marker(-1, 0, 0), marker(99, 0, 0)];
+      const cov = detectionCoverage(markers, 2, 2);
+      expect(cov.found).toBe(4);
+      expect(cov.total).toBe(4);
+      expect(cov.missing).toEqual([]);
+    });
   });
 });

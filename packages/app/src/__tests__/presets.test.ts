@@ -69,6 +69,39 @@ describe('presetStore', () => {
     expect(store.presets).toEqual([]);
   });
 
+  // Valid JSON that isn't an array of presets parses fine but would make
+  // save/remove/rename throw on the array methods — load must normalise to [].
+  it.each([
+    ['object', '{}'],
+    ['string', '"abc"'],
+    ['number', '123'],
+    ['null', 'null'],
+  ])('normalises wrong-shape storage (%s) to an empty list', async (_label, stored) => {
+    localStorage.setItem('wonderwall-presets', stored);
+    const store = await freshStore();
+    expect(store.presets).toEqual([]);
+    // The list operations must stay usable after recovery.
+    expect(() => store.save('A', 'solid', {})).not.toThrow();
+    expect(store.presets).toHaveLength(1);
+  });
+
+  it('drops malformed entries but keeps well-formed ones', async () => {
+    localStorage.setItem(
+      'wonderwall-presets',
+      JSON.stringify([
+        { id: '1', name: 'Good', patternId: 'solid', params: {}, createdAt: '2026-01-01' },
+        { id: '2', name: 'No params', patternId: 'solid' }, // missing params
+        { name: 'No id', patternId: 'solid', params: {} }, // missing id
+        'garbage',
+        null,
+      ]),
+    );
+    const store = await freshStore();
+    expect(store.presets).toHaveLength(1);
+    expect(store.presets[0].name).toBe('Good');
+    expect(() => store.remove('1')).not.toThrow();
+  });
+
   it('save() survives a throwing localStorage (quota / private mode)', async () => {
     const store = await freshStore();
     const spy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {

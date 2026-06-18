@@ -41,7 +41,6 @@ export const motionTest: TestPattern = {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
-    const size = isH ? w : h;
     const spacing = barW * 3;
     const offset = (time / 1000 * speed) % spacing;
 

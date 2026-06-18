@@ -29,6 +29,10 @@
       await startCamera(video);
       cameraReady = true;
     } catch (e) {
+      // If getUserMedia or video.play() rejected mid-start, the camera may have
+      // been acquired before the failure — release it so the privacy light
+      // doesn't stay on behind the error screen (mirrors DiagnosticsRunner).
+      stopCamera();
       error = `Camera access denied. ${(e as Error).message}`;
     }
   }

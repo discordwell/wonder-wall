@@ -324,7 +324,7 @@
       },
       'uniformity-white': {
         render(ctx, w, h, p) {
-          const pct=parseInt(p.brightness||'100',10), v=Math.round(pct/100*255);
+          const pctRaw=parseInt(p.brightness||'100',10), pct=Number.isFinite(pctRaw)?pctRaw:100, v=Math.round(pct/100*255);
           ctx.fillStyle=`rgb(${v},${v},${v})`; ctx.fillRect(0,0,w,h);
           ctx.fillStyle=v>128?'rgba(0,0,0,0.3)':'rgba(255,255,255,0.3)';
           ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';

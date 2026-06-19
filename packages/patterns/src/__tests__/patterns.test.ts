@@ -461,6 +461,19 @@ describe('uniformity white', () => {
     const pixel = getPixel(ctx, 100, 10);
     expect(pixel[0]).toBeGreaterThan(250);
   });
+
+  it('falls back to full white on a non-numeric brightness (no NaN leak)', () => {
+    // A direct render bypasses sanitizeParams (which would map an invalid select
+    // back to a real option). parseInt('abc') = NaN → without the guard,
+    // fillStyle = "rgb(NaN,NaN,NaN)" is silently ignored by the canvas, leaving
+    // the default black fill, and the label reads "NaN% White". The guard falls
+    // back to 100% so the field is actually filled white.
+    const { ctx, width, height } = createTestCanvas(200, 200);
+    const pattern = getPattern('uniformity-white')!;
+    pattern.render(ctx, width, height, { brightness: 'abc' });
+    // Top strip is above the label — must be white, not the unfilled black.
+    expect(pixelMatches(getPixel(ctx, 100, 10), [255, 255, 255])).toBe(true);
+  });
 });
 
 describe('pathological params never hang the render', () => {

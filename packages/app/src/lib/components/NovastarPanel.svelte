@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { sendNovastarCommand, type NovastarState } from '../services/novastar-client.ts';
+  import { sendNovastarCommand, connectEdgeDetector, type NovastarState } from '../services/novastar-client.ts';
 
   interface Props {
     novaState: NovastarState;
@@ -78,12 +78,22 @@
     sendNovastarCommand('restoreConfig', { id });
   }
 
+  // Refresh once per *connect edge*, not on every novaState reassignment.
+  // novaState is replaced on every status heartbeat and every novastarResult, so
+  // polling whenever `connected` is true would re-fire on the panel's own
+  // getBrightness/getConfigSnapshots replies — a self-sustaining flood of read
+  // commands to the controller. untrack() keeps the body's writes out of the
+  // dependency set (mirrors the `scanning` effect above).
+  const isConnectEdge = connectEdgeDetector();
   $effect(() => {
-    if (novaState.connected) {
-      connecting = false;
-      refreshBrightness();
-      refreshSnapshots();
-    }
+    const connected = novaState.connected;
+    untrack(() => {
+      if (isConnectEdge(connected)) {
+        connecting = false;
+        refreshBrightness();
+        refreshSnapshots();
+      }
+    });
   });
 </script>
 

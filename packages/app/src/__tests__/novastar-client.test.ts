@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createDefaultNovastarState,
   handleNovastarResult,
+  connectEdgeDetector,
 } from '../lib/services/novastar-client.ts';
 import type { NovastarResultMessage } from '@wonderwall/patterns';
 
@@ -93,5 +94,35 @@ describe('handleNovastarResult reducer', () => {
     const errored = { ...initial, error: 'prev' };
     const out = handleNovastarResult(msg({ action: 'something-future' }), errored);
     expect(out.error).toBeNull();
+  });
+});
+
+describe('connectEdgeDetector', () => {
+  // NovastarPanel uses this to refresh brightness/snapshots exactly once per
+  // connect, not on every NovastarState reassignment (heartbeats + the panel's
+  // own command replies replace the object). Firing on a level instead of an
+  // edge caused a self-sustaining poll loop to the controller; this encodes the
+  // false→true-only contract that prevents it.
+  it('fires only on a false→true transition, never while staying connected', () => {
+    const edge = connectEdgeDetector();
+    expect(edge(false)).toBe(false); // never connected yet
+    expect(edge(true)).toBe(true);   // connect edge → refresh
+    expect(edge(true)).toBe(false);  // still connected (reply/heartbeat) → no re-fire
+    expect(edge(true)).toBe(false);
+  });
+
+  it('re-arms after a disconnect so a reconnect fires again', () => {
+    const edge = connectEdgeDetector();
+    expect(edge(true)).toBe(true);   // first connect
+    expect(edge(false)).toBe(false); // disconnect
+    expect(edge(true)).toBe(true);   // reconnect edge → refresh again
+  });
+
+  it('keeps independent state per detector instance', () => {
+    const a = connectEdgeDetector();
+    const b = connectEdgeDetector();
+    expect(a(true)).toBe(true);
+    expect(b(true)).toBe(true); // b's own latch, unaffected by a
+    expect(a(true)).toBe(false);
   });
 });

@@ -78,4 +78,57 @@ describe('wallStore', () => {
     expect(store.rows).toBe(5);
     spy.mockRestore();
   });
+
+  // The Novastar auto-detect path (App.svelte) calls set() with columns/rows
+  // taken straight from a server status / novastarResult message, and
+  // parseServerMessage never shape-checks that wall object. So set() must be
+  // the write-side counterpart to the load-side isValidDimensions guard: a
+  // malformed value can't be allowed to make `totalPanels` NaN or persist
+  // garbage. These cast through `unknown` to model the runtime values the typed
+  // `number` signature can actually receive over the wire.
+  it('set() rounds non-integer dimensions (e.g. derived from cabinet division)', async () => {
+    const store = await freshStore();
+    store.set(4.7, 3.2);
+    expect(store.columns).toBe(5);
+    expect(store.rows).toBe(3);
+    expect(store.totalPanels).toBe(15);
+  });
+
+  it('set() clamps out-of-range dimensions instead of storing them', async () => {
+    const store = await freshStore();
+    store.set(0, -5);
+    expect(store.columns).toBe(1);
+    expect(store.rows).toBe(1);
+    store.set(999999, 5);
+    expect(store.columns).toBe(1000); // MAX_DIMENSION
+    expect(store.rows).toBe(5);
+  });
+
+  it.each([
+    ['NaN', NaN],
+    ['Infinity', Infinity],
+    ['null', null],
+    ['a string', '8'],
+    ['undefined', undefined],
+  ])('set() keeps the current value (not %s) and never yields NaN totalPanels', async (_label, bad) => {
+    const store = await freshStore();
+    store.set(6, 4); // known-good baseline
+    store.set(bad as unknown as number, bad as unknown as number, true);
+    expect(store.columns).toBe(6);
+    expect(store.rows).toBe(4);
+    expect(Number.isNaN(store.totalPanels)).toBe(false);
+    expect(store.totalPanels).toBe(24);
+    // And nothing NaN/garbage was persisted.
+    const persisted = JSON.parse(localStorage.getItem('wonderwall-wall-config')!);
+    expect(persisted).toEqual({ columns: 6, rows: 4 });
+  });
+
+  it('set() keeps the good field when only one dimension is malformed', async () => {
+    const store = await freshStore();
+    store.set(6, 4);
+    store.set(8, NaN as unknown as number, true); // valid columns, garbage rows
+    expect(store.columns).toBe(8);
+    expect(store.rows).toBe(4); // preserved
+    expect(store.totalPanels).toBe(32);
+  });
 });

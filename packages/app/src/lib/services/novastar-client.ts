@@ -43,6 +43,26 @@ export function sendNovastarCommand(action: string, params: Record<string, unkno
   sendRaw(JSON.stringify({ type: 'novastar', action, ...params }));
 }
 
+/**
+ * Returns a stateful predicate that reports a *connect edge* — `true` only on a
+ * false→true transition of `connected`, never while it stays true.
+ *
+ * The NovastarState object is reassigned on every status heartbeat and every
+ * novastarResult (the store spreads a fresh object each time), so a component
+ * effect that polls "whenever connected" would re-fire on its own getBrightness
+ * /getConfigSnapshots replies — a self-sustaining flood of read commands to the
+ * controller. Gating the one-shot refresh on this edge fixes that; a later
+ * disconnect/reconnect re-arms it.
+ */
+export function connectEdgeDetector(): (connected: boolean) => boolean {
+  let prev = false;
+  return (connected: boolean) => {
+    const edge = connected && !prev;
+    prev = connected;
+    return edge;
+  };
+}
+
 /** Handle a novastarResult message from the server and update state */
 export function handleNovastarResult(msg: NovastarResultMessage, state: NovastarState): NovastarState {
   if (msg.error) {

@@ -19,7 +19,15 @@ export const uniformityWhite: TestPattern = {
     },
   ],
   render(ctx, w, h, params) {
-    const pct = parseInt(getParam(params, 'brightness', '100'), 10);
+    // getParam only enforces the *string* type, not that the string is numeric,
+    // so a direct/library call with a non-numeric brightness makes parseInt
+    // return NaN — which would leak `rgb(NaN,NaN,NaN)` (silently ignored by the
+    // canvas, leaving the wall unfilled) and a literal "NaN% White" label.
+    // sanitizeParams maps any invalid select back to a real option for the
+    // app/server, but the pure function guards itself too (mirrors the
+    // brightness-steps `steps === 1` guard).
+    const raw = parseInt(getParam(params, 'brightness', '100'), 10);
+    const pct = Number.isFinite(raw) ? raw : 100;
     const v = Math.round((pct / 100) * 255);
     ctx.fillStyle = `rgb(${v},${v},${v})`;
     ctx.fillRect(0, 0, w, h);
